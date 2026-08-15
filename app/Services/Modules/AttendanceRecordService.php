@@ -132,6 +132,9 @@ class AttendanceRecordService extends BaseActionService
 
             if ($statusFilter !== null) {
                 $rows = array_values(array_filter($rows, function (array $row) use ($statusFilter): bool {
+                    if ($statusFilter === 'Terlambat' || $statusFilter === 'Telat') {
+                        return str_contains(strtolower((string)($row['keterangan'] ?? '')), 'terlambat') || str_contains(strtolower((string)($row['keterangan'] ?? '')), 'telat');
+                    }
                     return $this->normalizeMonitoringStatusFilterValue($row['status'] ?? null) === $statusFilter;
                 }));
             }

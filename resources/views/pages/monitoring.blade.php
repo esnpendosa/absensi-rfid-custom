@@ -51,6 +51,7 @@
                     <option value="">Semua Status</option>
                     <option value="Masuk">Masuk (Biru Muda)</option>
                     <option value="Hadir">Hadir (Hijau)</option>
+                    <option value="Terlambat">Terlambat / Telat (Oranye / Merah)</option>
                     <option value="Sakit">Sakit (Kuning)</option>
                     <option value="Izin">Izin (Biru)</option>
                     <option value="Alpa">Alpa (Merah)</option>

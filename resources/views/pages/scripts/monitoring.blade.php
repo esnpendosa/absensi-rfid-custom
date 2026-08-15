@@ -203,13 +203,18 @@ function normalizeMonitoringStatusFilter(status) {
         return normalized === 'Alfa' ? 'Alpa' : normalized;
     }
 
-function monitoringStatusMatches(itemStatus, filterStatus) {
+function monitoringStatusMatches(item, filterStatus) {
         const activeFilter = normalizeMonitoringStatusFilter(filterStatus);
         if (!activeFilter) {
             return true;
         }
 
-        const currentStatus = normalizeMonitoringStatusFilter(itemStatus);
+        if (activeFilter === 'Terlambat' || activeFilter === 'Telat') {
+            const ket = String((typeof item === 'object' ? item.keterangan : item) || '').toLowerCase();
+            return ket.includes('terlambat') || ket.includes('telat');
+        }
+
+        const currentStatus = normalizeMonitoringStatusFilter(typeof item === 'object' ? item.status : item);
         return currentStatus === activeFilter;
     }
 
@@ -279,12 +284,6 @@ function processTableData(type) {
 
         // 3. FILTER KHUSUS: STATUS KEHADIRAN (Untuk Monitoring)
         if (type === 'monitoring' && state.statusFilter) {
-            result = result.filter(item => monitoringStatusMatches(item.status, state.statusFilter));
-        }
-
-        // 4. FILTER UMUM: PENCARIAN (SEARCH)
-        if (state.search) {
-            const query = state.search.toLowerCase();
             result = result.filter(item => 
                 Object.values(item).some(val => 
                     String(val).toLowerCase().includes(query)

@@ -1,115 +1,250 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistem E-Absensi & Keuangan Sekolah
+### SMK NURUL HIDAYAH
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem Informasi Manajemen Terpadu Sekolah Berbasis Laravel untuk Presensi RFID ESP32, Kasir Keuangan Sekolah, Laporan Kas Masuk, Persuratan Resmi, dan Direktori Alumni Tracer Study.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📑 Daftar Isi
+1. [Fitur Utama Sistem (4 Pilar)](#-fitur-utama-sistem-4-pilar)
+2. [Teknologi & Persyaratan Server](#-teknologi--persyaratan-server)
+3. [Panduan Instalasi (Local & Hosting)](#-panduan-instalasi)
+4. [Panduan Modul & Penggunaan](#-panduan-modul--penggunaan)
+5. [Integrasi WhatsApp Gateway](#-integrasi-whatsapp-gateway)
+6. [Integrasi Perangkat Mesin Absensi (ESP32)](#-integrasi-perangkat-mesin-absensi-esp32)
+7. [Struktur Folder & Arsitektur](#-struktur-folder--arsitektur)
+8. [Lisensi & Hak Cipta](#-lisensi)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🌟 Fitur Utama Sistem (4 Pilar)
 
-## Learning Laravel
+### 1. Presensi & Monitoring Kehadiran (RFID / Barcode)
+- **Multi-Mode Kehadiran:** Mendukung mode *Masuk Saja* (One-Tap) dan *Masuk + Pulang* (Two-Tap).
+- **Aturan Jam Absensi:** Pengaturan fleksibel jam masuk, batas telat, jam mulai pulang, dan toleransi absen per hari.
+- **Monitoring Real-time:** Dashboard pantauan presensi live per kelas dan rekap harian/bulanan/tahunan.
+- **Kartu Siswa & Absensi:** Pembuatan ID card otomatis lengkap dengan Barcode / QR Code siap cetak.
+- **Pengajuan Izin / Sakit:** Sistem verifikasi bukti surat dokter/izin orang tua secara digital.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 2. Keuangan Sekolah (Kasir & Pos Dinamis)
+- **Kategori Pos Keuangan Fleksibel:** Atur berbagai pos pembayaran seperti SPP Bulanan (12 Bulan), Uang Gedung/Pembangunan (Cicilan/Bebas), Ujian Semester, Seragam & Atribut.
+- **Kasir Pembayaran Cepat:** Antarmuka kasir ringkas dengan filter kelas, status lunas/cicilan, dan modal input cepat.
+- **Sinkronisasi Tagihan Otomatis:** Sistem secara otomatis mendistribusikan tagihan ke seluruh siswa terdaftar.
+- **Nota Struk Kasir Thermal (POS Receipt):** Format nota struk mini kasir (58mm/80mm & A4) dengan barcode validasi.
+- **Kirim Kuitansi ke WhatsApp Otomatis:** Setiap kali transaksi berhasil, sistem mengirimkan pesan rincian beserta tautan unduh nota PDF ke nomor WhatsApp siswa/orang tua.
+- **Laporan Rekap Kas Masuk:** Filter rentang tanggal, kelas, pos pembayaran, dan metode bayar (Tunai, Transfer, QRIS) dengan format cetak dokumen resmi PDF lengkap tanda tangan Kepala Sekolah & Bendahara.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. Persuratan & Arsip Resmi
+- **Manajemen Surat Masuk & Surat Keluar:** Penomoran otomatis, klasifikasi surat, pengarsipan file digital PDF, dan pelacakan disposisi.
+- **Daftar Arsip Digital:** Penyimpanan dokumen penting sekolah yang aman dan terorganisir.
 
-## Laravel Sponsors
+### 4. Direktori Alumni & Tracer Study
+- **Pelacakan Karir & Studi:** Mencatat riwayat alumni pasca kelulusan (*Bekerja, Kuliah di PTN/PTS, Wirausaha, Mencari Kerja*).
+- **Input Manual & Kelulusan Massal:** Tambah data alumni langsung melalui form modal atau luluskan siswa kelas XII secara serentak dari modul Kenaikan Kelas.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 🛠️ Teknologi & Persyaratan Server
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Stack Teknologi
+- **Framework:** Laravel 12 (PHP 8.3+)
+- **Database:** MySQL 8.0+ / MariaDB 10.4+
+- **Frontend:** TailwindCSS, Vanilla JavaScript, FontAwesome Icons, SweetAlert2
+- **Cetak Dokumen:** HTML5 Printable Templates (A4 & Thermal POS Receipt)
 
-## Contributing
+### Persyaratan Ekstensi PHP
+- PHP >= 8.2 (Direkomendasikan **PHP 8.3**)
+- `BCMath`, `Ctype`, `cURL`, `DOM`, `Fileinfo`, `JSON`, `Mbstring`, `OpenSSL`, `PCRE`, `PDO`, `PDO_MySQL`, `Tokenizer`, `XML`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🚀 Panduan Instalasi
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### A. Instalasi di Lingkungan Lokal (Laragon / XAMPP)
 
-## Security Vulnerabilities
+1. **Clone Repositori:**
+   ```bash
+   git clone https://github.com/esnpendosa/absensi-rfid-custom.git
+   cd absensi-rfid-custom
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+2. **Install Dependensi Composer & NPM:**
+   ```bash
+   composer install
+   npm install && npm run build
+   ```
 
-## License
+3. **Salin File Environment & Generate Key:**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+4. **Konfigurasi Database di `.env`:**
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=db_absensi_sekolah
+   DB_USERNAME=root
+   DB_PASSWORD=
+   ```
 
-## Dokumentasi Implementasi
+5. **Jalankan Migrasi & Seeder:**
+   ```bash
+   php artisan migrate --seed
+   ```
 
-- Panduan instalasi untuk user awam di cPanel dan Laragon: [`docs/panduan-instalasi-cpanel-dan-laragon.html`](docs/panduan-instalasi-cpanel-dan-laragon.html)
-- Versi PDF panduan instalasi cPanel dan Laragon: [`docs/panduan-instalasi-cpanel-dan-laragon.pdf`](docs/panduan-instalasi-cpanel-dan-laragon.pdf)
-- Panduan penggunaan untuk guru dan orang tua: [`docs/panduan-penggunaan-guru-dan-orang-tua.md`](docs/panduan-penggunaan-guru-dan-orang-tua.md)
-- Versi HTML siap cetak: [`docs/panduan-penggunaan-guru-dan-orang-tua.html`](docs/panduan-penggunaan-guru-dan-orang-tua.html)
-- Versi PDF dengan screenshot: [`docs/panduan-penggunaan-guru-dan-orang-tua.pdf`](docs/panduan-penggunaan-guru-dan-orang-tua.pdf)
-- Panduan fitur lengkap versi HTML: [`docs/panduan-fitur-lengkap-absensindo.html`](docs/panduan-fitur-lengkap-absensindo.html)
-- Panduan fitur lengkap versi PDF: [`docs/panduan-fitur-lengkap-absensindo.pdf`](docs/panduan-fitur-lengkap-absensindo.pdf)
+6. **Buat Symlink Storage & Bersihkan Cache:**
+   ```bash
+   php artisan storage:link
+   php artisan optimize:clear
+   ```
 
-## Struktur Blade (Pemisahan Layout/Partial)
+7. **Jalankan Server Lokal:**
+   ```bash
+   php artisan serve
+   ```
+   Akses di browser: `http://127.0.0.1:8000`
 
-Template utama sudah dipisah agar setiap halaman/section berada di file terpisah.
+---
 
-### Entry Point
+### B. Panduan Deploy ke Hosting (Hostinger / cPanel)
 
-- [`resources/views/app.blade.php`](resources/views/app.blade.php:1)
-- [`resources/views/scanner.blade.php`](resources/views/scanner.blade.php:1)
+1. Upload seluruh file proyek ke folder tujuan (misalnya `public_html` atau subfolder root).
+2. Konfigurasikan `.env` dengan kredensial database hosting:
+   ```env
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_URL=https://domainsekolah.sch.id
 
-Keduanya hanya me-render layout utama:
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=u123456_namadb
+   DB_USERNAME=u123456_userdb
+   DB_PASSWORD=password_db
+   ```
+3. Pastikan folder `storage` dan `bootstrap/cache` memiliki permission **775** atau **755** (dapat ditulis web server).
+4. Jalankan perintah pembersihan cache melalui SSH Terminal Hosting:
+   ```bash
+   php artisan config:clear
+   php artisan route:clear
+   php artisan view:clear
+   ```
 
-```blade
-@include('layouts.app')
-@include('layouts.scanner')
+---
+
+## 📖 Panduan Modul & Penggunaan
+
+### 1. Modul Kasir Pembayaran (`/keuangan/pembayaran`)
+- Membuka halaman kasir menampilkan 4 kartu ringkasan pemasukan kas, tagihan lunas, siswa terdaftar, dan sisa tunggakan.
+- Klik tombol hijau **`+ Input Pembayaran`**:
+  - Cari nama siswa/NISN.
+  - Pilih pos tagihan (otomatis memuat nominal tagihan dan sisa tunggakan).
+  - Masukkan nominal pembayaran & pilih metode (*Tunai, Transfer, QRIS*).
+  - Klik **Simpan Pembayaran** -> Nota Kasir otomatis dicetak dan dikirim ke WhatsApp siswa.
+
+### 2. Modul Laporan Keuangan (`/keuangan/laporan`)
+- Menampilkan seluruh riwayat transaksi kas masuk.
+- Atur filter rentang tanggal (*Dari Tanggal - Sampai Tanggal*), filter kelas, pos keuangan, atau metode pembayaran.
+- Klik **Cetak Laporan Resmi** untuk mengunduh/mencetak dokumen PDF resmi ber-KOP sekolah.
+
+### 3. Modul Kategori Pos Keuangan (`/keuangan/pos`)
+- Tambah kategori baru dengan tipe:
+  - `Bulanan`: Otomatis digenerate 12 bulan (Juli - Juni). Contoh: **SPP Bulanan**.
+  - `Bebas / Angsuran`: Pembayaran total yang dapat dicicil berkala. Contoh: **Uang Gedung**.
+  - `Sekali Bayar`: Tagihan tunggal per tahun ajaran. Contoh: **Ujian Semester, Seragam**.
+
+### 4. Modul Alumni & Tracer Study (`/data-alumni`)
+- Klik **`+ Tambah Alumni`** untuk menambahkan arsip lulusan langsung beserta status aktivitas saat ini (*Kuliah, Bekerja, Wirausaha, Mencari Kerja*).
+- Atau gunakan fitur **Luluskan Siswa Kelas XII** di menu *Akademik -> Kenaikan Kelas*.
+
+---
+
+## 📲 Integrasi WhatsApp Gateway
+
+Sistem dilengkapi `WaGatewayService` yang mendukung berbagai provider gateway WhatsApp (seperti Fonnte, Wablas, atau Gateway Mandiri):
+
+1. Masuk ke menu **Pengaturan -> Pengaturan Notifikasi**.
+2. Masukkan **Base URL Gateway** dan **API Token / API Key**.
+3. Notifikasi otomatis aktif untuk:
+   - ✅ Presensi kehadiran siswa (Jam Datang & Jam Pulang) ke wali murid.
+   - ✅ Bukti pembayaran resmi kasir beserta tautan nota PDF digital ke nomor siswa/orang tua.
+
+---
+
+## 📡 Integrasi Perangkat Mesin Absensi (ESP32)
+
+Mesin absensi berbasis microcontroller ESP32 / RFID RC522 berkomunikasi melalui REST API:
+
+- **Endpoint:** `POST /api/absen/rfid` atau `POST /api/device/scan`
+- **Headers:**
+  ```http
+  Content-Type: application/json
+  X-Device-Token: your_registered_device_token
+  ```
+- **Payload Request:**
+  ```json
+  {
+    "rfid_uid": "93A24B10",
+    "timestamp": "2026-08-16 07:05:00"
+  }
+  ```
+- **Response Sukses:**
+  ```json
+  {
+    "status": "success",
+    "message": "Presensi Berhasil: Masuk Tepat Waktu",
+    "student_name": "Muhammad As'ad",
+    "time": "07:05:00"
+  }
+  ```
+
+---
+
+## 📂 Struktur Folder & Arsitektur
+
+```
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── DashboardController.php         # Handler dashboard 4 pilar eksekutif
+│   │   ├── KeuanganSekolahController.php   # Kasir, Pos, Laporan & Cetak Nota
+│   │   ├── DataAlumniController.php        # Direktori Alumni & Tracer Study
+│   │   ├── DataSiswaController.php         # Manajemen Siswa Aktif
+│   │   └── PersuratanController.php        # Persuratan & Arsip Digital
+│   ├── Models/
+│   │   ├── Siswa.php                       # Data Siswa
+│   │   ├── Alumni.php                      # Data Alumni & Tracer
+│   │   ├── PosKeuangan.php                 # Pos/Kategori Pembayaran
+│   │   ├── TagihanSiswa.php                # Rekening Tagihan Siswa
+│   │   ├── TransaksiKeuangan.php           # Log Transaksi Kasir
+│   │   └── Surat.php                       # Surat Masuk & Keluar
+│   └── Services/
+│       ├── StudentAttendanceService.php    # Logika Jam & Validasi Presensi
+│       ├── WaGatewayService.php            # Service Notifikasi WhatsApp
+│       └── Modules/AlumniRecordService.php # Service Pengelolaan Alumni
+├── resources/
+│   └── views/
+│       ├── pages/                          # Halaman Tampilan Blade
+│       │   ├── dashboard-admin.blade.php
+│       │   ├── keuangan-pembayaran.blade.php
+│       │   ├── keuangan-laporan.blade.php
+│       │   ├── keuangan-pos.blade.php
+│       │   └── data-alumni.blade.php
+│       ├── partials/
+│       │   └── sidebar.blade.php           # Navigasi Sidebar 4 Pilar
+│       └── pdf/                            # Template Cetak Resmi
+│           ├── kuitansi-keuangan.blade.php # Nota Kasir Thermal POS
+│           └── laporan-keuangan.blade.php  # Laporan Kas Masuk A4
+└── routes/
+    ├── web.php                             # Routing Aplikasi Web
+    └── api.php                             # Endpoint ESP32 & Webhook
 ```
 
-### Layout
+---
 
-- [`resources/views/layouts/app.blade.php`](resources/views/layouts/app.blade.php:1)
-- [`resources/views/layouts/scanner.blade.php`](resources/views/layouts/scanner.blade.php:1)
+## 📄 Lisensi
 
-Layout berisi `<head>`, `<style>`, `<script>` global dan include partials + view-section.
-
-### Partial Bersama
-
-- [`resources/views/partials/login.blade.php`](resources/views/partials/login.blade.php:1)
-- [`resources/views/partials/sidebar.blade.php`](resources/views/partials/sidebar.blade.php:1)
-- [`resources/views/partials/header.blade.php`](resources/views/partials/header.blade.php:1)
-
-### View Section
-
-Setiap `div.view-section` dipisah ke file sendiri di folder:
-
-- [`resources/views/views/`](resources/views/views:1)
-
-Contoh:
-
-- [`resources/views/views/view-admin-dashboard.blade.php`](resources/views/views/view-admin-dashboard.blade.php:1)
-- [`resources/views/views/view-data-siswa.blade.php`](resources/views/views/view-data-siswa.blade.php:1)
-- [`resources/views/views/view-scanner.blade.php`](resources/views/views/view-scanner.blade.php:1)
-
-### Catatan Penting
-
-- Pastikan ID/kelas elemen tidak diubah agar JS tetap bekerja.
-- Urutan include view-section di layout dipertahankan untuk kompatibilitas script.
+Dikembangkan untuk **SMK NURUL HIDAYAH**.
+Hak Cipta dilindungi undang-undang.

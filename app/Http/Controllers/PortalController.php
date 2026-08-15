@@ -20,33 +20,36 @@ class PortalController extends Controller
         $startOfMonth = Carbon::now()->startOfMonth()->toDateString();
         $endOfMonth = Carbon::now()->endOfMonth()->toDateString();
 
-        // 1. Total Siswa Realtime
+        // 1. Total Siswa Realtime (Data Siswa)
         $siswaRawCount = Siswa::count();
         $totalSiswa = number_format($siswaRawCount, 0, ',', '.');
 
-        // 2. Total Guru & Tenaga Kependidikan Realtime
-        $guruRawCount = User::whereDoesntHave('roles', function ($q) {
-            $q->where('name', 'siswa');
+        // 2. Total Guru & Tenaga Pendidik Realtime (Data Guru / Wali Kelas)
+        $guruRawCount = User::whereHas('roles', function ($q) {
+            $q->whereIn('name', ['guru', 'wakel']);
         })->count();
         $totalGuru = number_format($guruRawCount, 0, ',', '.');
 
-        // 3. Tingkat Kehadiran Realtime (Bulan Ini / Hari Ini)
-        $totalAbsenBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->count();
-        if ($totalAbsenBulanIni > 0) {
-            $totalHadirBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
-                ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
-                ->count();
-            $tingkatKehadiran = round(($totalHadirBulanIni / $totalAbsenBulanIni) * 100);
+        // 3. Tingkat Kehadiran Realtime
+        $totalHadirHariIni = Absensi::where('tanggal', $today)
+            ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
+            ->count();
+
+        if ($totalHadirHariIni > 0 && $siswaRawCount > 0) {
+            $tingkatKehadiran = round(($totalHadirHariIni / $siswaRawCount) * 100);
         } else {
-            $totalHadirHariIni = Absensi::where('tanggal', $today)
-                ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
-                ->count();
-            $tingkatKehadiran = ($siswaRawCount > 0 && $totalHadirHariIni > 0)
-                ? round(($totalHadirHariIni / $siswaRawCount) * 100)
-                : 100;
+            $totalAbsenBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->count();
+            if ($totalAbsenBulanIni > 0) {
+                $totalHadirBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
+                    ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
+                    ->count();
+                $tingkatKehadiran = round(($totalHadirBulanIni / $totalAbsenBulanIni) * 100);
+            } else {
+                $tingkatKehadiran = 100;
+            }
         }
 
-        // 4. Total Alumni Realtime
+        // 4. Total Alumni Realtime (Database Tracer Alumni)
         $alumniRawCount = Alumni::count();
         $totalAlumni = number_format($alumniRawCount, 0, ',', '.');
 

@@ -19,7 +19,7 @@
               <div class="absolute top-0 left-0 w-full h-full bg-white/5 pointer-events-none"></div>
               <div class="flex items-center space-x-3 relative z-10 w-full">
                   <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-900/50 shrink-0 transition-all duration-300">
-                      <img id="sidebarBrandLogoImg" src="{{ $brandLogoUrl ?? '' }}" alt="Logo" class="w-full h-full object-cover rounded-lg {{ empty($brandLogoUrl) ? 'hidden' : '' }}">
+                      <img id="sidebarBrandLogoImg" src="{{ $brandLogoUrl ?? \App\Helpers\PortalAssets::getLogo() }}" onerror="this.src='{{ \App\Helpers\PortalAssets::getLogo() }}'; this.onerror=null;" alt="Logo" class="w-full h-full object-contain p-0.5 rounded-lg {{ empty($brandLogoUrl) ? 'hidden' : '' }}">
                       <i id="sidebarBrandLogoIcon" class="fas fa-qrcode text-sm {{ !empty($brandLogoUrl) ? 'hidden' : '' }}"></i>
                   </div>
                   <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap">

@@ -99,12 +99,27 @@ class AppServiceProvider extends ServiceProvider
                         ->all();
 
                     $final = array_merge($settings, $rows);
-                    $final['website_logo_url'] = !empty($final['website_logo_path'])
-                        ? url('storage/' . ltrim($final['website_logo_path'], '/'))
-                        : null;
-                    $final['website_favicon_url'] = !empty($final['website_favicon_path'])
-                        ? url('storage/' . ltrim($final['website_favicon_path'], '/'))
-                        : null;
+                    
+                    $logoUrl = null;
+                    if (!empty($final['website_logo_path'])) {
+                        $fullLogoPath = storage_path('app/public/' . ltrim($final['website_logo_path'], '/'));
+                        if (file_exists($fullLogoPath)) {
+                            $logoUrl = url('storage/' . ltrim($final['website_logo_path'], '/'));
+                        }
+                    }
+                    if (!$logoUrl && class_exists(\App\Helpers\PortalAssets::class)) {
+                        $logoUrl = \App\Helpers\PortalAssets::getLogo();
+                    }
+                    $final['website_logo_url'] = $logoUrl ?: asset('images/logo-smk.png');
+
+                    $faviconUrl = null;
+                    if (!empty($final['website_favicon_path'])) {
+                        $fullFavPath = storage_path('app/public/' . ltrim($final['website_favicon_path'], '/'));
+                        if (file_exists($fullFavPath)) {
+                            $faviconUrl = url('storage/' . ltrim($final['website_favicon_path'], '/'));
+                        }
+                    }
+                    $final['website_favicon_url'] = $faviconUrl ?: $final['website_logo_url'];
 
                     return $final;
                 });

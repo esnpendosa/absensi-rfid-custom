@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\PortalAssets;
 use App\Models\Absensi;
 use App\Models\Alumni;
+use App\Models\Konfigurasi;
 use App\Models\Siswa;
 use App\Models\User;
 use Carbon\Carbon;
@@ -16,23 +17,41 @@ class PortalController extends Controller
     public function index(): View
     {
         $today = Carbon::today()->toDateString();
+        $startOfMonth = Carbon::now()->startOfMonth()->toDateString();
+        $endOfMonth = Carbon::now()->endOfMonth()->toDateString();
 
-        $siswaCount = Siswa::count();
-        $totalSiswa = $siswaCount > 0 ? number_format($siswaCount, 0, ',', '.') : '1.248';
+        // 1. Total Siswa Realtime
+        $siswaRawCount = Siswa::count();
+        $totalSiswa = number_format($siswaRawCount, 0, ',', '.');
 
-        $guruCount = User::whereDoesntHave('roles', function ($q) {
+        // 2. Total Guru & Tenaga Kependidikan Realtime
+        $guruRawCount = User::whereDoesntHave('roles', function ($q) {
             $q->where('name', 'siswa');
         })->count();
-        $totalGuru = $guruCount > 0 ? $guruCount : '86';
+        $totalGuru = number_format($guruRawCount, 0, ',', '.');
 
-        $totalHadirHariIni = Absensi::where('tanggal', $today)->whereIn('status', ['Hadir', 'Masuk'])->count();
-        $totalSiswaHariIni = Siswa::count();
-        $tingkatKehadiran = ($totalSiswaHariIni > 0 && $totalHadirHariIni > 0)
-            ? round(($totalHadirHariIni / $totalSiswaHariIni) * 100)
-            : 92;
+        // 3. Tingkat Kehadiran Realtime (Bulan Ini / Hari Ini)
+        $totalAbsenBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->count();
+        if ($totalAbsenBulanIni > 0) {
+            $totalHadirBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
+                ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
+                ->count();
+            $tingkatKehadiran = round(($totalHadirBulanIni / $totalAbsenBulanIni) * 100);
+        } else {
+            $totalHadirHariIni = Absensi::where('tanggal', $today)
+                ->whereIn('status', ['Hadir', 'Masuk', 'Terlambat'])
+                ->count();
+            $tingkatKehadiran = ($siswaRawCount > 0 && $totalHadirHariIni > 0)
+                ? round(($totalHadirHariIni / $siswaRawCount) * 100)
+                : 100;
+        }
 
-        $alumniCount = Alumni::count();
-        $totalAlumni = $alumniCount > 0 ? number_format($alumniCount, 0, ',', '.') : '3.562';
+        // 4. Total Alumni Realtime
+        $alumniRawCount = Alumni::count();
+        $totalAlumni = number_format($alumniRawCount, 0, ',', '.');
+
+        // 5. Config/Dynamic School Info
+        $schoolName = Konfigurasi::where('key', 'website_name')->value('value') ?: 'SMK Nurul Hidayah Bungah';
 
         $assets = [
             'logo' => PortalAssets::getLogo(),
@@ -49,6 +68,7 @@ class PortalController extends Controller
             'totalGuru',
             'tingkatKehadiran',
             'totalAlumni',
+            'schoolName',
             'assets'
         ));
     }

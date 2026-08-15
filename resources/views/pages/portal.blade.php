@@ -54,7 +54,7 @@
                 </button>
 
                 @auth
-                    <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 bg-white border border-slate-200 shadow-sm rounded-full py-1 pl-1.5 pr-3.5 hover:border-emerald-300 transition">
+                    <a href="{{ url('/dashboard') }}" class="flex items-center gap-2.5 bg-white border border-slate-200 shadow-sm rounded-full py-1 pl-1.5 pr-3.5 hover:border-emerald-300 transition">
                         <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
                             <i class="fas fa-user-tie"></i>
                         </div>
@@ -65,7 +65,7 @@
                         <i class="fas fa-chevron-down text-[9px] text-slate-400"></i>
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs px-4 py-2 rounded-full shadow-md shadow-emerald-600/20 transition transform hover:scale-[1.02]">
+                    <a href="{{ url('/login') }}" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs px-4 py-2 rounded-full shadow-md shadow-emerald-600/20 transition transform hover:scale-[1.02]">
                         <i class="fas fa-sign-in-alt text-xs"></i>
                         <span>Masuk Akun</span>
                     </a>
@@ -145,7 +145,7 @@
 
                 <!-- Action Button -->
                 <div class="pt-3 mt-1 border-t border-slate-100">
-                    <a href="{{ route('scanner') }}" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <a href="{{ url('/scanner') }}" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
                         <span>Buka Aplikasi</span>
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
@@ -169,7 +169,7 @@
 
                 <!-- Action Button -->
                 <div class="pt-3 mt-1 border-t border-slate-100">
-                    <a href="{{ route('keuangan.pembayaran') }}" class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <a href="{{ url('/keuangan/pembayaran') }}" class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
                         <span>Buka Aplikasi</span>
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
@@ -193,7 +193,7 @@
 
                 <!-- Action Button -->
                 <div class="pt-3 mt-1 border-t border-slate-100">
-                    <a href="{{ route('persuratan.index') }}" class="w-full py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <a href="{{ url('/persuratan') }}" class="w-full py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
                         <span>Buka Aplikasi</span>
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
@@ -217,7 +217,7 @@
 
                 <!-- Action Button -->
                 <div class="pt-3 mt-1 border-t border-slate-100">
-                    <a href="{{ route('data-alumni') }}" class="w-full py-2 px-3 bg-[#d96c14] hover:bg-[#c25e0e] text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <a href="{{ url('/data-alumni') }}" class="w-full py-2 px-3 bg-[#d96c14] hover:bg-[#c25e0e] text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
                         <span>Buka Aplikasi</span>
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
@@ -241,7 +241,7 @@
 
                 <!-- Action Button -->
                 <div class="pt-3 mt-1 border-t border-slate-100">
-                    <a href="{{ route('dashboard') }}" class="w-full py-2 px-3 bg-[#0d828a] hover:bg-[#096a70] text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <a href="{{ url('/dashboard') }}" class="w-full py-2 px-3 bg-[#0d828a] hover:bg-[#096a70] text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition">
                         <span>Buka Aplikasi</span>
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>

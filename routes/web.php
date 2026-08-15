@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'updatePos'])->name('pos.update');
             Route::delete('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'destroyPos'])->name('pos.destroy');
 
+            Route::get('/pembayaran', [KeuanganSekolahController::class, 'indexPembayaran'])->name('pembayaran');
             Route::get('/pembayaran', [KeuanganSekolahController::class, 'indexPembayaran'])->name('pembayaran.index');
             Route::get('/pembayaran/data', [KeuanganSekolahController::class, 'dataPembayaran'])->name('pembayaran.data');
             Route::post('/pembayaran/sync', [KeuanganSekolahController::class, 'syncSemuaTagihan'])->name('pembayaran.sync');

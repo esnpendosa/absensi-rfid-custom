@@ -179,7 +179,12 @@ class AlumniRecordService extends BaseActionService
 
     public function updateTracer(array $args, $auth): array
     {
-        $payload = $args[0] ?? [];
+        $role = $this->getRoleFromAuth($auth);
+        if (!$auth || !in_array($role, ['super-admin', 'admin', 'kepsek', 'wakel', 'guru', 'wakasek'], true)) {
+            return ['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin mengupdate tracer study.'];
+        }
+
+        $payload = is_array($args[0] ?? null) ? $args[0] : $args;
         $alumniId = (int) ($payload['id'] ?? 0);
         if ($alumniId <= 0) {
             return ['success' => false, 'message' => 'ID alumni tidak valid.'];

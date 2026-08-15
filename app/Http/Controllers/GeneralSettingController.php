@@ -67,11 +67,27 @@ class GeneralSettingController extends Controller
         if ($request->hasFile('website_logo')) {
             $this->deletePublicFileIfExists($logoPath);
             $logoPath = $request->file('website_logo')->store('settings', 'public');
+            try {
+                $targetFile = public_path('storage/' . $logoPath);
+                $targetDir = dirname($targetFile);
+                if (!file_exists($targetDir)) {
+                    @mkdir($targetDir, 0755, true);
+                }
+                @copy(storage_path('app/public/' . $logoPath), $targetFile);
+            } catch (\Throwable $e) {}
         }
 
         if ($request->hasFile('website_favicon')) {
             $this->deletePublicFileIfExists($faviconPath);
             $faviconPath = $request->file('website_favicon')->store('settings', 'public');
+            try {
+                $targetFile = public_path('storage/' . $faviconPath);
+                $targetDir = dirname($targetFile);
+                if (!file_exists($targetDir)) {
+                    @mkdir($targetDir, 0755, true);
+                }
+                @copy(storage_path('app/public/' . $faviconPath), $targetFile);
+            } catch (\Throwable $e) {}
         }
 
         $payload = [
@@ -140,10 +156,10 @@ class GeneralSettingController extends Controller
         $settings['website_timezone'] = $websiteTimezone;
         $settings['website_timezone_label'] = (string) ($timezoneOptions[$websiteTimezone] ?? 'WIB (UTC+07:00)');
         $settings['website_logo_url'] = !empty($settings['website_logo_path'])
-            ? Storage::disk('public')->url($settings['website_logo_path'])
+            ? url('storage/' . ltrim($settings['website_logo_path'], '/'))
             : null;
         $settings['website_favicon_url'] = !empty($settings['website_favicon_path'])
-            ? Storage::disk('public')->url($settings['website_favicon_path'])
+            ? url('storage/' . ltrim($settings['website_favicon_path'], '/'))
             : null;
 
         return $settings;

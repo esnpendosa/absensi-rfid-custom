@@ -100,10 +100,10 @@ class AppServiceProvider extends ServiceProvider
 
                     $final = array_merge($settings, $rows);
                     $final['website_logo_url'] = !empty($final['website_logo_path'])
-                        ? Storage::disk('public')->url($final['website_logo_path'])
+                        ? url('storage/' . ltrim($final['website_logo_path'], '/'))
                         : null;
                     $final['website_favicon_url'] = !empty($final['website_favicon_path'])
-                        ? Storage::disk('public')->url($final['website_favicon_path'])
+                        ? url('storage/' . ltrim($final['website_favicon_path'], '/'))
                         : null;
 
                     return $final;

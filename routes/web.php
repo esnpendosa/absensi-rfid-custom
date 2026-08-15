@@ -44,6 +44,18 @@ Route::post('/install/database', [InstallController::class, 'storeDatabase'])->n
 Route::get('/install/website', [InstallController::class, 'websiteStep'])->name('install.website');
 Route::post('/install/website', [InstallController::class, 'install'])->name('install.website.store');
 
+Route::get('/storage/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/' . $path);
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+    $mimeType = mime_content_type($fullPath) ?: 'image/png';
+    return response()->file($fullPath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('path', '.*')->name('storage.local');
+
 Route::get('/', function () {
     return redirect()->route('dashboard');
 })->middleware('auth');

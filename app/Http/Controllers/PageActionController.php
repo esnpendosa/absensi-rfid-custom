@@ -38,13 +38,22 @@ abstract class PageActionController extends Controller
 
     protected function extractArgs(Request $request): array
     {
-        $args = $request->input('args', []);
+        if ($request->has('args')) {
+            $args = $request->input('args', []);
 
-        if (!is_array($args)) {
-            return [$args];
+            if (!is_array($args)) {
+                return [$args];
+            }
+
+            return array_values($args);
         }
 
-        return array_values($args);
+        $all = $request->except(['_token']);
+        if (!empty($all)) {
+            return [$all];
+        }
+
+        return [];
     }
 
     protected function resolvePageAuthToken(): ?AuthToken

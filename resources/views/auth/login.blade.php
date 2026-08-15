@@ -11,7 +11,7 @@
                     <div>
                         <a href="{{ url('/') }}" class="inline-flex items-center gap-3 mb-5 group">
                             <div class="w-11 h-11 rounded-xl bg-white p-1 shadow-md border border-white/25 flex items-center justify-center">
-                                <img src="{{ asset('images/logo-smk.png') }}" alt="Logo SMK" class="w-full h-full object-contain">
+                                <img src="{{ class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getLogo() : asset('images/logo-smk.png') }}" alt="Logo SMK" class="w-full h-full object-contain">
                             </div>
                             <div>
                                 <p class="text-xs uppercase tracking-[0.2em] font-black text-white">NURIS</p>

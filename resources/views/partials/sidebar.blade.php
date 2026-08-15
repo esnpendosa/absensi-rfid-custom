@@ -1,33 +1,33 @@
 @php
-            $brandName = $appUiSettings['website_nama'] ?? 'NURIS';
-            $brandSlogan = $appUiSettings['website_slogan'] ?? 'Nurul Hidayah Integrated System';
-            $brandLogoUrl = !empty($appUiSettings['website_logo_url']) ? $appUiSettings['website_logo_url'] : asset('images/logo-smk.png');
-            $sidebarUser = auth()->user();
+    $brandName = $appUiSettings['website_nama'] ?? 'NURIS';
+    $brandSlogan = $appUiSettings['website_slogan'] ?? 'Nurul Hidayah Integrated System';
+    $embeddedLogo = class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getLogo() : asset('images/logo-smk.png');
+    $brandLogoUrl = !empty($appUiSettings['website_logo_url']) ? $appUiSettings['website_logo_url'] : $embeddedLogo;
+    $sidebarUser = auth()->user();
+    $sidebarAvatarUrl = null;
+    if ($sidebarUser && !empty($sidebarUser->avatar_path)) {
+        try {
+            $sidebarAvatarUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($sidebarUser->avatar_path);
+        } catch (\Throwable $e) {
             $sidebarAvatarUrl = null;
-            if ($sidebarUser && !empty($sidebarUser->avatar_path)) {
-                try {
-                    $sidebarAvatarUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($sidebarUser->avatar_path);
-                } catch (\Throwable $e) {
-                    $sidebarAvatarUrl = null;
-                }
-            }
-            $sidebarIzinSakitPendingCount = (int) ($sidebarIzinSakitPendingCount ?? 0);
-        @endphp
-       <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 text-white transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-full shadow-2xl border-r border-white/15" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 35%, #1d4ed8 65%, #2563eb 100%);">   
-          
-          <div id="sidebarHeader" class="h-16 flex items-center justify-start px-6 border-b border-white/15 overflow-hidden relative transition-all duration-300 mb-2">
-              <div class="absolute top-0 left-0 w-full h-full bg-white/5 pointer-events-none"></div>
-              <div class="flex items-center space-x-3 relative z-10 w-full">
-                  <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-900/50 shrink-0 transition-all duration-300">
-                      <img id="sidebarBrandLogoImg" src="{{ $brandLogoUrl ?? \App\Helpers\PortalAssets::getLogo() }}" onerror="this.src='{{ \App\Helpers\PortalAssets::getLogo() }}'; this.onerror=null;" alt="Logo" class="w-full h-full object-contain p-0.5 rounded-lg {{ empty($brandLogoUrl) ? 'hidden' : '' }}">
-                      <i id="sidebarBrandLogoIcon" class="fas fa-qrcode text-sm {{ !empty($brandLogoUrl) ? 'hidden' : '' }}"></i>
-                  </div>
-                  <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap">
-                      <h1 id="sidebarBrandName" class="font-bold text-base tracking-wide text-white">{{ $brandName }}</h1>
-                      <p id="sidebarBrandSlogan" class="text-[9px] text-indigo-100 uppercase tracking-wider font-semibold">{{ $brandSlogan }}</p>
-                  </div>
-              </div>
+        }
+    }
+    $sidebarIzinSakitPendingCount = (int) ($sidebarIzinSakitPendingCount ?? 0);
+@endphp
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 text-white transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-full shadow-2xl border-r border-white/15" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 35%, #1d4ed8 65%, #2563eb 100%);">   
+  
+  <div id="sidebarHeader" class="h-16 flex items-center justify-start px-5 border-b border-white/15 overflow-hidden relative transition-all duration-300 mb-2">
+      <div class="absolute top-0 left-0 w-full h-full bg-white/5 pointer-events-none"></div>
+      <div class="flex items-center space-x-3 relative z-10 w-full">
+          <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm border border-white/20 shrink-0 transition-all duration-300">
+              <img id="sidebarBrandLogoImg" src="{{ $embeddedLogo }}" onerror="this.src='{{ $embeddedLogo }}'; this.onerror=null;" alt="Logo NURIS" class="w-full h-full object-contain">
           </div>
+          <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap">
+              <h1 id="sidebarBrandName" class="font-bold text-base tracking-wide text-white">{{ $brandName }}</h1>
+              <p id="sidebarBrandSlogan" class="text-[9px] text-indigo-100 uppercase tracking-wider font-semibold">{{ $brandSlogan }}</p>
+          </div>
+      </div>
+  </div>
      
           <nav id="sidebarMenu" class="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-3 space-y-3 pb-5 scrollbar-hide text-sm">
               @auth

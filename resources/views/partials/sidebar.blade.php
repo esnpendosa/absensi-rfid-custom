@@ -1,18 +1,18 @@
-       @php
-           $brandName = $appUiSettings['website_nama'] ?? 'E-ABSENSI';
-           $brandSlogan = $appUiSettings['website_slogan'] ?? 'School System';
-           $brandLogoUrl = $appUiSettings['website_logo_url'] ?? null;
-           $sidebarUser = auth()->user();
-           $sidebarAvatarUrl = null;
-           if ($sidebarUser && !empty($sidebarUser->avatar_path)) {
-               try {
-                   $sidebarAvatarUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($sidebarUser->avatar_path);
-               } catch (\Throwable $e) {
-                   $sidebarAvatarUrl = null;
-               }
-           }
-           $sidebarIzinSakitPendingCount = (int) ($sidebarIzinSakitPendingCount ?? 0);
-       @endphp
+@php
+            $brandName = $appUiSettings['website_nama'] ?? 'NURIS';
+            $brandSlogan = $appUiSettings['website_slogan'] ?? 'Nurul Hidayah Integrated System';
+            $brandLogoUrl = !empty($appUiSettings['website_logo_url']) ? $appUiSettings['website_logo_url'] : asset('images/logo-smk.png');
+            $sidebarUser = auth()->user();
+            $sidebarAvatarUrl = null;
+            if ($sidebarUser && !empty($sidebarUser->avatar_path)) {
+                try {
+                    $sidebarAvatarUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($sidebarUser->avatar_path);
+                } catch (\Throwable $e) {
+                    $sidebarAvatarUrl = null;
+                }
+            }
+            $sidebarIzinSakitPendingCount = (int) ($sidebarIzinSakitPendingCount ?? 0);
+        @endphp
        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 text-white transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-full shadow-2xl border-r border-white/15" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 35%, #1d4ed8 65%, #2563eb 100%);">   
           
           <div id="sidebarHeader" class="h-16 flex items-center justify-start px-6 border-b border-white/15 overflow-hidden relative transition-all duration-300 mb-2">

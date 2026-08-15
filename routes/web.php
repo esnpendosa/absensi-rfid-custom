@@ -56,9 +56,9 @@ Route::get('/storage/{path}', function (string $path) {
     ]);
 })->where('path', '.*')->name('storage.local');
 
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-})->middleware('auth');
+use App\Http\Controllers\PortalController;
+
+Route::get('/', [PortalController::class, 'index'])->name('portal');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');

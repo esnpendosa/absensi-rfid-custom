@@ -9,17 +9,17 @@
                 <div class="absolute -bottom-10 -left-12 w-40 h-40 rounded-full bg-white/10"></div>
                 <div class="relative z-10 h-full flex flex-col justify-between gap-8">
                     <div>
-                        <div class="inline-flex items-center gap-3 mb-5">
-                            <div class="w-10 h-10 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center">
-                                <i class="fas fa-qrcode text-base"></i>
+                        <a href="{{ url('/') }}" class="inline-flex items-center gap-3 mb-5 group">
+                            <div class="w-11 h-11 rounded-xl bg-white p-1 shadow-md border border-white/25 flex items-center justify-center">
+                                <img src="{{ asset('images/logo-smk.png') }}" alt="Logo SMK" class="w-full h-full object-contain">
                             </div>
                             <div>
-                                <p class="text-xs uppercase tracking-[0.2em] font-bold text-white/90">Absensindo</p>
-                                <p class="text-[11px] text-white/80">Sistem Absensi Sekolah</p>
+                                <p class="text-xs uppercase tracking-[0.2em] font-black text-white">NURIS</p>
+                                <p class="text-[10px] text-white/80">SMK Nurul Hidayah</p>
                             </div>
-                        </div>
+                        </a>
                         <h1 class="text-2xl md:text-3xl font-bold leading-tight">
-                            Masuk ke Dashboard
+                            Masuk ke Sistem NURIS
                         </h1>
                         <p id="loginMotivationText" class="text-sm text-white/85 mt-3 leading-relaxed transition-opacity duration-300">
                             Pendidikan yang konsisten membentuk masa depan yang kuat.

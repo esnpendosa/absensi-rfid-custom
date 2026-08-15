@@ -241,10 +241,29 @@ class KeuanganSekolahController extends Controller
 
         $tagihanList = $query->orderByDesc('id')->paginate($request->input('per_page', 20));
 
-        $totalPemasukan = (float) TransaksiKeuangan::sum('nominal_bayar');
-        $totalLunas = TagihanSiswa::where('status', 'lunas')->count();
-        $totalSiswa = Siswa::count();
-        $totalTunggakan = (float) TagihanSiswa::where('status', '!=', 'lunas')->sum('sisa');
+        // HITUNG RINGKASAN DATA (DISESUAIKAN DENGAN ROLE USER)
+        if ($user && $user->hasRole('siswa')) {
+            $mySiswa = Siswa::where('nisn', $user->username)->orWhere('nama', $user->name)->first();
+            $mySiswaId = $mySiswa ? $mySiswa->id : 0;
+
+            $totalPemasukan = (float) TransaksiKeuangan::where('siswa_id', $mySiswaId)->sum('nominal_bayar');
+            $totalLunas = TagihanSiswa::where('siswa_id', $mySiswaId)->where('status', 'lunas')->count();
+            $totalSiswa = TagihanSiswa::where('siswa_id', $mySiswaId)->count();
+            $totalTunggakan = (float) TagihanSiswa::where('siswa_id', $mySiswaId)->where('status', '!=', 'lunas')->sum('sisa');
+        } elseif ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
+            $kelas = $user->kelas;
+            $siswaIds = Siswa::where('kelas', $kelas)->pluck('id');
+
+            $totalPemasukan = (float) TransaksiKeuangan::whereIn('siswa_id', $siswaIds)->sum('nominal_bayar');
+            $totalLunas = TagihanSiswa::whereIn('siswa_id', $siswaIds)->where('status', 'lunas')->count();
+            $totalSiswa = count($siswaIds);
+            $totalTunggakan = (float) TagihanSiswa::whereIn('siswa_id', $siswaIds)->where('status', '!=', 'lunas')->sum('sisa');
+        } else {
+            $totalPemasukan = (float) TransaksiKeuangan::sum('nominal_bayar');
+            $totalLunas = TagihanSiswa::where('status', 'lunas')->count();
+            $totalSiswa = Siswa::count();
+            $totalTunggakan = (float) TagihanSiswa::where('status', '!=', 'lunas')->sum('sisa');
+        }
 
         return response()->json([
             'success' => true,
@@ -284,6 +303,23 @@ class KeuanganSekolahController extends Controller
 
     public function tagihanSiswa(Siswa $siswa): JsonResponse
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            if ($siswa->nisn !== $user->username && $siswa->nama !== $user->name) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses Ditolak: Anda hanya diizinkan melihat tagihan milik akun Anda sendiri.'
+                ], 403);
+            }
+        } elseif ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
+            if ($siswa->kelas !== $user->kelas) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses Ditolak: Anda hanya diizinkan melihat data siswa di kelas Anda.'
+                ], 403);
+            }
+        }
+
         // Pastikan tagihan default pos keuangan dibuat jika belum ada
         $posAktif = PosKeuangan::where('is_active', true)->get();
         $bulanList = ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'];
@@ -438,6 +474,14 @@ class KeuanganSekolahController extends Controller
 
     public function cetakKuitansi(TransaksiKeuangan $transaksi): View
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            $siswa = $transaksi->siswa;
+            if ($siswa && $siswa->nisn !== $user->username && $siswa->nama !== $user->name) {
+                abort(403, 'Akses Ditolak: Anda hanya boleh melihat kuitansi Anda sendiri.');
+            }
+        }
+
         $transaksi->load(['siswa', 'posKeuangan', 'tagihan', 'user']);
         return view('pdf.kuitansi-keuangan', compact('transaksi'));
     }

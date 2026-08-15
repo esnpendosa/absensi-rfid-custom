@@ -7,10 +7,17 @@
     <!-- Header & Action Buttons -->
     <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h2 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
-                <i class="fas fa-money-check-alt text-blue-600"></i> Pembayaran Tagihan Siswa
-            </h2>
-            <p class="text-xs text-gray-500 mt-1">Input data pembayaran SPP, Uang Gedung, Ujian, dan pantau status tagihan siswa.</p>
+            @if(auth()->user()?->hasRole('siswa'))
+                <h2 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
+                    <i class="fas fa-wallet text-emerald-600"></i> Rincian Tagihan & Keuangan Saya
+                </h2>
+                <p class="text-xs text-gray-500 mt-1">Halo <b>{{ auth()->user()->name }}</b> (NISN: {{ auth()->user()->username }} / Kelas: {{ auth()->user()->kelas }}), pantau status pembayaran SPP, Uang Gedung, dan tagihan Anda.</p>
+            @else
+                <h2 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
+                    <i class="fas fa-money-check-alt text-blue-600"></i> Pembayaran Tagihan Siswa
+                </h2>
+                <p class="text-xs text-gray-500 mt-1">Input data pembayaran SPP, Uang Gedung, Ujian, dan pantau status tagihan siswa.</p>
+            @endif
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
             <button type="button" onclick="loadTableData()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition shadow-sm">
@@ -37,7 +44,7 @@
     <!-- 4 Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Pemasukan</span>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ auth()->user()?->hasRole('siswa') ? 'Total Terbayar' : 'Total Pemasukan' }}</span>
             <div class="mt-2 text-2xl font-bold text-blue-600" id="statPemasukan">Rp 0</div>
         </div>
 
@@ -47,12 +54,12 @@
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col justify-between">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Siswa Tercakup</span>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ auth()->user()?->hasRole('siswa') ? 'Total Tagihan' : 'Siswa Tercakup' }}</span>
             <div class="mt-2 text-2xl font-bold text-indigo-600" id="statSiswa">0</div>
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-red-100 shadow-sm flex flex-col justify-between">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Tunggakan</span>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ auth()->user()?->hasRole('siswa') ? 'Sisa Tunggakan' : 'Total Tunggakan' }}</span>
             <div class="mt-2 text-2xl font-bold text-red-600" id="statTunggakan">Rp 0</div>
         </div>
     </div>
@@ -61,7 +68,8 @@
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <!-- Filter Bar -->
         <div class="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row items-center justify-between gap-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full xl:w-auto">
+            <div class="grid grid-cols-1 {{ auth()->user()?->hasRole('siswa') ? 'sm:grid-cols-2' : 'sm:grid-cols-3' }} gap-3 w-full xl:w-auto">
+                @if(!auth()->user()?->hasRole('siswa'))
                 <div>
                     <select id="filterKelas" onchange="loadTableData()" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                         <option value="">Semua Kelas</option>
@@ -70,6 +78,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <select id="filterPos" onchange="loadTableData()" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                         <option value="">Semua Kategori Pos</option>
@@ -93,7 +102,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
                         <i class="fas fa-search"></i>
                     </div>
-                    <input type="text" id="searchInput" oninput="debounceSearch()" placeholder="Cari nama atau NISN..." class="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                    <input type="text" id="searchInput" oninput="debounceSearch()" placeholder="{{ auth()->user()?->hasRole('siswa') ? 'Cari nama pos / bulan...' : 'Cari nama atau NISN...' }}" class="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                 </div>
                 <button type="button" onclick="resetFilter()" class="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-50 shadow-sm">Reset</button>
             </div>
@@ -131,6 +140,7 @@
     </div>
 </div>
 
+@if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
 <!-- MODAL INPUT PEMBAYARAN CEPAT -->
 <div id="modalInputPembayaran" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
@@ -215,6 +225,7 @@
         </form>
     </div>
 </div>
+@endif
 
 <script>
 let currentPage = 1;

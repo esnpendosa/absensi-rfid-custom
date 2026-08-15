@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\PortalAssets;
 use App\Models\Absensi;
 use App\Models\Alumni;
 use App\Models\Siswa;
@@ -33,11 +34,22 @@ class PortalController extends Controller
         $alumniCount = Alumni::count();
         $totalAlumni = $alumniCount > 0 ? number_format($alumniCount, 0, ',', '.') : '3.562';
 
+        $assets = [
+            'logo' => PortalAssets::getLogo(),
+            'building' => PortalAssets::getBuilding(),
+            'card1' => PortalAssets::getCard1(),
+            'card2' => PortalAssets::getCard2(),
+            'card3' => PortalAssets::getCard3(),
+            'card4' => PortalAssets::getCard4(),
+            'card5' => PortalAssets::getCard5(),
+        ];
+
         return view('pages.portal', compact(
             'totalSiswa',
             'totalGuru',
             'tingkatKehadiran',
-            'totalAlumni'
+            'totalAlumni',
+            'assets'
         ));
     }
 }

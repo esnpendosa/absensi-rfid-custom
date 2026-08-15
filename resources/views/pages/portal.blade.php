@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NURIS - SMK Nurul Hidayah Integrated System</title>
-    <link rel="icon" type="image/png" href="{{ asset('images/logo-smk.png') }}">
+    <link rel="icon" type="image/png" href="{{ $assets['logo'] ?? asset('images/logo-smk.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -24,7 +24,7 @@
         }
         .card-live:hover {
             transform: translateY(-8px);
-            box-shadow: 0 25px 35px -12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 22px 35px -10px rgba(0, 0, 0, 0.14);
         }
     </style>
 </head>
@@ -36,7 +36,7 @@
             <!-- Brand Logo & Title -->
             <a href="{{ url('/') }}" class="flex items-center gap-3.5 group">
                 <div class="w-12 h-12 rounded-xl bg-white p-1 shadow-sm border border-slate-100 flex items-center justify-center transition group-hover:scale-105 shrink-0">
-                    <img src="{{ asset('images/logo-smk.png') }}" alt="Logo SMK Nurul Hidayah" class="w-full h-full object-contain">
+                    <img src="{{ $assets['logo'] }}" alt="Logo SMK Nurul Hidayah" class="w-full h-full object-contain">
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5">
@@ -82,7 +82,7 @@
     <!-- MAIN CONTENT CONTAINER -->
     <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex-1 flex flex-col justify-center space-y-7 relative z-10">
         
-        <!-- HERO BANNER SECTION (OPEN SEAMLESS LAYOUT MATCHING TARGET DESIGN) -->
+        <!-- HERO BANNER SECTION (MATCHING TARGET DESIGN) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2 pb-4">
             
             <!-- Left Text Column -->
@@ -109,7 +109,7 @@
             <!-- Right Building Column (Clean photo blending into page) -->
             <div class="lg:col-span-6 flex justify-center lg:justify-end">
                 <div class="w-full max-w-lg rounded-2xl overflow-hidden shadow-md border border-slate-100 bg-white">
-                    <img src="{{ asset('images/hero-building-clean.png') }}" alt="SMK Nurul Hidayah" class="w-full h-44 sm:h-52 lg:h-56 object-cover object-center rounded-2xl">
+                    <img src="{{ $assets['building'] }}" alt="SMK Nurul Hidayah" class="w-full h-44 sm:h-52 lg:h-56 object-cover object-center rounded-2xl">
                 </div>
             </div>
 
@@ -128,7 +128,7 @@
             <p class="text-xs sm:text-sm font-medium text-slate-500">Akses cepat ke 5 sub aplikasi NURIS</p>
         </div>
 
-        <!-- 5 SUB-APPLICATION CARDS GRID (VIBRANT & ALIVE) -->
+        <!-- 5 SUB-APPLICATION CARDS GRID (100% MATCHING TARGET DESIGN) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             
             <!-- CARD 01: NURIS ABSEN -->
@@ -136,7 +136,7 @@
                 <div>
                     <!-- Art Graphic Header -->
                     <div class="w-full h-32 rounded-xl overflow-hidden mb-3.5 bg-emerald-50 flex items-center justify-center shadow-xs">
-                        <img src="{{ asset('images/cards/art-01.png') }}" alt="NURIS Absen" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
+                        <img src="{{ $assets['card1'] }}" alt="NURIS Absen" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
                     </div>
 
                     <!-- Title & Description -->
@@ -160,7 +160,7 @@
                 <div>
                     <!-- Art Graphic Header -->
                     <div class="w-full h-32 rounded-xl overflow-hidden mb-3.5 bg-blue-50 flex items-center justify-center shadow-xs">
-                        <img src="{{ asset('images/cards/art-02.png') }}" alt="NURIS Finance" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
+                        <img src="{{ $assets['card2'] }}" alt="NURIS Finance" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
                     </div>
 
                     <!-- Title & Description -->
@@ -184,7 +184,7 @@
                 <div>
                     <!-- Art Graphic Header -->
                     <div class="w-full h-32 rounded-xl overflow-hidden mb-3.5 bg-purple-50 flex items-center justify-center shadow-xs">
-                        <img src="{{ asset('images/cards/art-03.png') }}" alt="NURIS Letter" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
+                        <img src="{{ $assets['card3'] }}" alt="NURIS Letter" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
                     </div>
 
                     <!-- Title & Description -->
@@ -208,7 +208,7 @@
                 <div>
                     <!-- Art Graphic Header -->
                     <div class="w-full h-32 rounded-xl overflow-hidden mb-3.5 bg-amber-50 flex items-center justify-center shadow-xs">
-                        <img src="{{ asset('images/cards/art-04.png') }}" alt="NURIS Alumni" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
+                        <img src="{{ $assets['card4'] }}" alt="NURIS Alumni" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
                     </div>
 
                     <!-- Title & Description -->
@@ -232,7 +232,7 @@
                 <div>
                     <!-- Art Graphic Header -->
                     <div class="w-full h-32 rounded-xl overflow-hidden mb-3.5 bg-teal-50 flex items-center justify-center shadow-xs">
-                        <img src="{{ asset('images/cards/art-05.png') }}" alt="NURIS Dashboard" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
+                        <img src="{{ $assets['card5'] }}" alt="NURIS Dashboard" class="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105">
                     </div>
 
                     <!-- Title & Description -->
@@ -253,7 +253,7 @@
 
         </div>
 
-        <!-- STATS SUMMARY BAR (FLOATING WHITE CONTAINER MATCHING TARGET DESIGN) -->
+        <!-- STATS SUMMARY BAR (FLOATING WHITE CONTAINER) -->
         <div class="bg-white rounded-2xl border border-slate-200/90 shadow-md p-4 sm:p-5">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
                 
@@ -314,7 +314,7 @@
 
     </main>
 
-    <!-- FOOTER SECTION WITH DECORATIVE ACCENT CURVES -->
+    <!-- FOOTER SECTION -->
     <footer class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 border-t border-slate-200/80 mt-6 relative z-10">
         <div class="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
             <div class="font-medium text-center sm:text-left">
@@ -326,7 +326,7 @@
         </div>
     </footer>
 
-    <!-- BOTTOM DECORATIVE CORNER WAVES (MATCHING IMAGE 2) -->
+    <!-- BOTTOM DECORATIVE CORNER ACCENTS -->
     <div class="pointer-events-none fixed bottom-0 left-0 w-48 h-20 bg-gradient-to-tr from-emerald-500/20 via-amber-400/20 to-transparent rounded-tr-full blur-xl -z-0"></div>
     <div class="pointer-events-none fixed bottom-0 right-0 w-48 h-20 bg-gradient-to-tl from-emerald-500/20 via-amber-400/20 to-transparent rounded-tl-full blur-xl -z-0"></div>
 

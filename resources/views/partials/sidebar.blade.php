@@ -136,20 +136,34 @@
                       <div class="mt-2 pl-2 space-y-2">
                           <a href="{{ url('/keuangan/pembayaran') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('keuangan.pembayaran.*') ? 'bg-white/15 text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                               <i class="fas fa-cash-register w-4 text-center"></i>
-                              <span class="sidebar-label text-[14px] font-medium">Kasir Pembayaran</span>
+                              <span class="sidebar-label text-[14px] font-medium">
+                                  @if(auth()->user()?->hasRole('siswa'))
+                                      Tagihan Saya
+                                  @elseif(auth()->user()?->hasRole('wakel'))
+                                      Tagihan Kelas
+                                  @else
+                                      Kasir Pembayaran
+                                  @endif
+                              </span>
                           </a>
+                          @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek', 'wakel']))
                           <a href="{{ url('/keuangan/laporan') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('keuangan.laporan.*') ? 'bg-white/15 text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                               <i class="fas fa-file-invoice-dollar w-4 text-center"></i>
                               <span class="sidebar-label text-[14px] font-medium">Laporan Keuangan</span>
                           </a>
+                          @endif
+                          @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek']))
                           <a href="{{ url('/keuangan/pos') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('keuangan.pos.*') ? 'bg-white/15 text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                               <i class="fas fa-tags w-4 text-center"></i>
                               <span class="sidebar-label text-[14px] font-medium">Kategori Pos Keuangan</span>
                           </a>
+                          @endif
+                          @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek']))
                           <a href="{{ route('tabungan-siswa.rekening.index') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('tabungan-siswa.rekening.*') ? 'bg-white/15 text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                               <i class="fas fa-wallet w-4 text-center"></i>
                               <span class="sidebar-label text-[14px] font-medium">Tabungan Siswa</span>
                           </a>
+                          @endif
                       </div>
                   </details>
                   @can('absen.manage')

@@ -16,15 +16,21 @@
             <button type="button" onclick="loadTableData()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition shadow-sm">
                 <i class="fas fa-sync-alt"></i> Perbarui
             </button>
+            @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
             <button type="button" onclick="openInputPembayaranModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition transform active:scale-95">
                 <i class="fas fa-plus-circle"></i> Input Pembayaran
             </button>
+            @endif
+            @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek', 'wakel']))
             <a href="{{ url('/keuangan/laporan') }}" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition shadow-sm">
                 <i class="fas fa-file-invoice-dollar"></i> Laporan
             </a>
+            @endif
+            @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek']))
             <a href="{{ url('/keuangan/pos') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md transition transform active:scale-95">
                 <i class="fas fa-tags"></i> Kategori Pos
             </a>
+            @endif
         </div>
     </div>
 
@@ -280,17 +286,19 @@ async function loadTableData(page = 1) {
     }
 }
 
-function renderTableRows(rows, meta) {
+const canInputPayment = {{ auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']) ? 'true' : 'false' }};
+
+function renderTableRows(data, meta) {
     const tbody = document.getElementById('tbodyTagihan');
-    if (!rows || rows.length === 0) {
+    if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400">Tidak ada data tagihan ditemukan.</td></tr>`;
         document.getElementById('pageInfo').textContent = 'Menampilkan 0 data';
         document.getElementById('paginationControls').innerHTML = '';
         return;
     }
 
-    const startNo = ((meta.current_page - 1) * 20) + 1;
-    tbody.innerHTML = rows.map((r, idx) => {
+    const startNo = (meta.current_page - 1) * 20 + 1;
+    tbody.innerHTML = data.map((r, idx) => {
         let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Belum Bayar</span>`;
         if (r.status === 'lunas') {
             statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>`;
@@ -300,6 +308,23 @@ function renderTableRows(rows, meta) {
 
         const posName = r.pos_keuangan ? r.pos_keuangan.nama : '-';
         const bulanLabel = r.bulan ? ` (${r.bulan})` : '';
+
+        let actionCol = '';
+        if (canInputPayment) {
+            if (r.status !== 'lunas') {
+                actionCol = `
+                    <button type="button" onclick="quickPay(${r.siswa_id}, ${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}', ${r.sisa})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition">
+                        <i class="fas fa-hand-holding-usd"></i> Bayar
+                    </button>
+                `;
+            } else {
+                actionCol = `<span class="text-[11px] font-bold text-emerald-600"><i class="fas fa-check-circle"></i> Selesai</span>`;
+            }
+        } else {
+            actionCol = r.status === 'lunas'
+                ? `<span class="text-[11px] font-bold text-emerald-600"><i class="fas fa-check-circle"></i> Lunas</span>`
+                : `<span class="text-[11px] font-bold text-amber-600">Menunggu</span>`;
+        }
 
         return `
             <tr class="hover:bg-gray-50 transition">
@@ -318,13 +343,7 @@ function renderTableRows(rows, meta) {
                 <td class="p-3 text-right font-bold text-red-600">${formatRupiah(r.sisa)}</td>
                 <td class="p-3 text-center">${statusBadge}</td>
                 <td class="p-3 text-center">
-                    ${r.status !== 'lunas' ? `
-                        <button type="button" onclick="quickPay(${r.siswa_id}, ${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}', ${r.sisa})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition">
-                            <i class="fas fa-hand-holding-usd"></i> Bayar
-                        </button>
-                    ` : `
-                        <span class="text-[11px] font-bold text-emerald-600"><i class="fas fa-check-circle"></i> Selesai</span>
-                    `}
+                    ${actionCol}
                 </td>
             </tr>
         `;

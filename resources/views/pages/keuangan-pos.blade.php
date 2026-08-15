@@ -12,9 +12,11 @@
             </h2>
             <p class="text-xs text-gray-500 mt-1">Kelola pos pembayaran secara dinamis (SPP, Uang Gedung, Ujian, Seragam, dll).</p>
         </div>
+        @if(auth()->user()?->hasAnyRole(['super-admin', 'admin']))
         <button onclick="openModalTambahPos()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition transform active:scale-95">
             <i class="fas fa-plus"></i> Tambah Kategori Pos
         </button>
+        @endif
     </div>
 
     <!-- Table Pos Keuangan -->
@@ -125,10 +127,12 @@ async function loadPosData() {
     }
 }
 
+const canManagePos = {{ auth()->user()?->hasAnyRole(['super-admin', 'admin']) ? 'true' : 'false' }};
+
 function renderPosTable(data) {
     const tbody = document.getElementById('posTableBody');
     if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400">Belum ada kategori pos keuangan. Klik "Tambah Kategori Pos" di atas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400">Belum ada kategori pos keuangan.</td></tr>`;
         return;
     }
 
@@ -138,34 +142,40 @@ function renderPosTable(data) {
         sekali_bayar: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Sekali Bayar</span>',
     };
 
-    tbody.innerHTML = data.map((item, idx) => `
-        <tr class="hover:bg-gray-50/70 transition">
-            <td class="p-4 text-center font-bold text-gray-400">${idx + 1}</td>
-            <td class="p-4 font-mono font-bold text-blue-700">${item.kode}</td>
-            <td class="p-4">
-                <div class="font-bold text-gray-800">${item.nama}</div>
-                <div class="text-[10px] text-gray-400">${item.deskripsi || '-'}</div>
-            </td>
-            <td class="p-4">${typeBadge[item.tipe] || item.tipe}</td>
-            <td class="p-4 font-bold text-gray-900">Rp ${Number(item.nominal_default).toLocaleString('id-ID')}</td>
-            <td class="p-4 text-gray-600">${item.tahun_ajaran || '-'}</td>
-            <td class="p-4 text-center">
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${item.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">
-                    ${item.is_active ? 'Aktif' : 'Nonaktif'}
-                </span>
-            </td>
-            <td class="p-4 text-center">
-                <div class="flex items-center justify-center gap-1.5">
-                    <button onclick="editPos(${item.id})" class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center transition" title="Edit">
-                        <i class="fas fa-edit text-xs"></i>
-                    </button>
-                    <button onclick="deletePos(${item.id})" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition" title="Hapus">
-                        <i class="fas fa-trash text-xs"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = data.map((item, idx) => {
+        const actionHtml = canManagePos ? `
+            <div class="flex items-center justify-center gap-1.5">
+                <button onclick="editPos(${item.id})" class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center transition" title="Edit">
+                    <i class="fas fa-edit text-xs"></i>
+                </button>
+                <button onclick="deletePos(${item.id})" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition" title="Hapus">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            </div>
+        ` : `<span class="text-[11px] text-gray-400 font-medium">Read-Only</span>`;
+
+        return `
+            <tr class="hover:bg-gray-50/70 transition">
+                <td class="p-4 text-center font-bold text-gray-400">${idx + 1}</td>
+                <td class="p-4 font-mono font-bold text-blue-700">${item.kode}</td>
+                <td class="p-4">
+                    <div class="font-bold text-gray-800">${item.nama}</div>
+                    <div class="text-[10px] text-gray-400">${item.deskripsi || '-'}</div>
+                </td>
+                <td class="p-4">${typeBadge[item.tipe] || item.tipe}</td>
+                <td class="p-4 font-bold text-gray-900">Rp ${Number(item.nominal_default).toLocaleString('id-ID')}</td>
+                <td class="p-4 text-gray-600">${item.tahun_ajaran || '-'}</td>
+                <td class="p-4 text-center">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${item.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">
+                        ${item.is_active ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                </td>
+                <td class="p-4 text-center">
+                    ${actionHtml}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function openModalTambahPos() {

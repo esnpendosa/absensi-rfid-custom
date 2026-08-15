@@ -21,11 +21,18 @@ class KeuanganSekolahController extends Controller
 
     public function indexPos(): View
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek'])) {
+            abort(403, 'Akses Ditolak: Anda tidak memiliki izin melihat kategori pos keuangan.');
+        }
         return view('pages.keuangan-pos');
     }
 
     public function dataPos(): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara', 'kepsek'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak.'], 403);
+        }
+
         $pos = PosKeuangan::query()
             ->withCount('tagihan')
             ->orderBy('id')
@@ -39,6 +46,10 @@ class KeuanganSekolahController extends Controller
 
     public function storePos(Request $request): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat menambah pos keuangan.'], 403);
+        }
+
         $validated = $request->validate([
             'kode' => ['required', 'string', 'max:30', 'unique:pos_keuangan,kode'],
             'nama' => ['required', 'string', 'max:100'],
@@ -67,6 +78,9 @@ class KeuanganSekolahController extends Controller
 
     public function updatePos(Request $request, PosKeuangan $posKeuangan): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat mengubah pos keuangan.'], 403);
+        }
         $validated = $request->validate([
             'kode' => ['required', 'string', 'max:30', 'unique:pos_keuangan,kode,' . $posKeuangan->id],
             'nama' => ['required', 'string', 'max:100'],
@@ -96,6 +110,10 @@ class KeuanganSekolahController extends Controller
 
     public function destroyPos(PosKeuangan $posKeuangan): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat menghapus pos keuangan.'], 403);
+        }
+
         $posKeuangan->delete();
 
         return response()->json([
@@ -166,6 +184,10 @@ class KeuanganSekolahController extends Controller
 
     public function syncSemuaTagihan(): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak.'], 403);
+        }
+
         $this->ensureBillingSynced();
 
         return response()->json([
@@ -178,7 +200,22 @@ class KeuanganSekolahController extends Controller
     {
         $this->ensureBillingSynced();
 
+        $user = auth()->user();
         $query = TagihanSiswa::query()->with(['siswa', 'posKeuangan']);
+
+        // JIKA ROLE SISWA: HANYA BOLEH MELIHAT DATA TAGIHAN SENDIRI
+        if ($user && $user->hasRole('siswa')) {
+            $nisn = $user->username;
+            $nama = $user->name;
+            $query->whereHas('siswa', function ($q) use ($nisn, $nama) {
+                $q->where('nisn', $nisn)->orWhere('nama', $nama);
+            });
+        } elseif ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
+            // WALI KELAS: HANYA BOLEH MELIHAT KELASNYA
+            $query->whereHas('siswa', function ($q) use ($user) {
+                $q->where('kelas', $user->kelas);
+            });
+        }
 
         if ($request->filled('kelas')) {
             $query->whereHas('siswa', function ($q) use ($request) {
@@ -309,6 +346,13 @@ class KeuanganSekolahController extends Controller
 
     public function bayarTagihan(Request $request): JsonResponse
     {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses Ditolak: Anda tidak memiliki izin untuk menginput pembayaran kasir. Hanya Bendahara dan Admin yang diperbolehkan.'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'siswa_id' => ['required', 'exists:siswa,id'],
             'tagihan_id' => ['required', 'exists:tagihan_siswa,id'],
@@ -404,6 +448,11 @@ class KeuanganSekolahController extends Controller
 
     public function indexLaporan(): View
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            abort(403, 'Akses Ditolak: Siswa tidak memiliki akses ke laporan rekap kas sekolah.');
+        }
+
         $posList = PosKeuangan::orderBy('nama')->get();
         $kelasList = Siswa::query()->whereNotNull('kelas')->distinct()->pluck('kelas');
         return view('pages.keuangan-laporan', compact('posList', 'kelasList'));
@@ -411,7 +460,16 @@ class KeuanganSekolahController extends Controller
 
     public function dataLaporan(Request $request): JsonResponse
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'], 403);
+        }
+
         $query = TransaksiKeuangan::query()->with(['siswa', 'posKeuangan', 'tagihan', 'user']);
+
+        if ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
+            $query->whereHas('siswa', fn ($q) => $q->where('kelas', $user->kelas));
+        }
 
         if ($request->filled('tanggal_mulai')) {
             $query->whereDate('tanggal_bayar', '>=', $request->tanggal_mulai);
@@ -467,7 +525,16 @@ class KeuanganSekolahController extends Controller
 
     public function cetakLaporan(Request $request): View
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            abort(403, 'Akses Ditolak: Anda tidak memiliki izin mencetak laporan kas.');
+        }
+
         $query = TransaksiKeuangan::query()->with(['siswa', 'posKeuangan', 'tagihan', 'user']);
+
+        if ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
+            $query->whereHas('siswa', fn ($q) => $q->where('kelas', $user->kelas));
+        }
 
         if ($request->filled('tanggal_mulai')) {
             $query->whereDate('tanggal_bayar', '>=', $request->tanggal_mulai);

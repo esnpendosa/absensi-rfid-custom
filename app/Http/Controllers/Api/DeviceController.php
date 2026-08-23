@@ -149,13 +149,37 @@ class DeviceController extends Controller
 
         $card = $resolvedCard['card'];
         if (!$card->siswa) {
+            $guru = \App\Models\User::query()
+                ->where('nomor_kartu', $uid)
+                ->orWhere('nomor_kartu', $card->code)
+                ->first();
+
+            if ($guru) {
+                $teacherAttService = app(\App\Services\TeacherAttendanceService::class);
+                $attResult = $teacherAttService->process($guru, $scannedAt);
+                return $this->successResponse(
+                    $request,
+                    $attResult['message'] ?? ('Presensi Guru: ' . $guru->name),
+                    [
+                        'card_code' => $card->code,
+                        'student_nisn' => $guru->username,
+                        'student_name' => $guru->name,
+                        'student_class' => $guru->jabatan ?: 'Guru / Staf',
+                        'server_time' => now()->format('Y-m-d H:i:s'),
+                        'time' => $attResult['jamPulang'] ?? $attResult['jamDatang'] ?? now()->format('H:i:s'),
+                        'status_label' => $attResult['status_label'] ?? 'Hadir',
+                        'type' => $attResult['type'] ?? 'masuk',
+                    ]
+                );
+            }
+
             $isNewCard = (bool) ($resolvedCard['created'] ?? false);
 
             return $this->errorResponse(
                 $request,
                 $isNewCard
-                    ? 'Kartu baru terdeteksi. Tautkan kartu ke siswa terlebih dahulu.'
-                    : 'Kartu belum ditautkan ke siswa.',
+                    ? 'Kartu baru terdeteksi. Tautkan kartu ke siswa atau guru terlebih dahulu.'
+                    : 'Kartu belum ditautkan ke siswa atau guru.',
                 409,
                 [
                     'reason' => $isNewCard ? 'new_card_detected' : 'card_not_linked',

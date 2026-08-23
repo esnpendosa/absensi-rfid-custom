@@ -42,6 +42,12 @@ class TabunganSiswaController extends Controller
     public function rekeningPage(Request $request): View
     {
         $user = $request->user();
+
+        // Task 5.3: siswa tidak boleh mengakses halaman rekening admin
+        if ($user && $user->hasRole('siswa')) {
+            abort(403);
+        }
+
         abort_unless($user && $this->canAccessManagementPage($user), 403);
 
         return view('pages.tabungan-siswa-rekening');
@@ -310,15 +316,50 @@ class TabunganSiswaController extends Controller
 
     public function storeAccount(Request $request, TabunganSiswaService $service): JsonResponse
     {
-        abort_unless($this->canManageAccounts($request->user()), 403);
+        $user = $request->user();
 
-        $validated = $this->validateAccountCreatePayload($request);
-        $account = $service->createAccount($validated, $request->user());
+        // Task 5.3: siswa tidak boleh mengakses endpoint CRUD rekening admin
+        if ($user && $user->hasRole('siswa')) {
+            abort(403);
+        }
+
+        abort_unless($this->canManageAccounts($user), 403);
+
+        // Task 5.1: validasi input
+        $validated = $request->validate([
+            'siswa_id'          => ['required', 'integer', 'exists:siswa,id'],
+            'jenis_tabungan_id' => ['required', 'integer', 'exists:jenis_tabungan,id'],
+            'setoran_awal'      => ['required', 'numeric', 'min:0'],
+            'opened_at'         => ['nullable', 'date'],
+            'is_active'         => ['nullable', 'boolean'],
+        ]);
+
+        // Task 5.1: cek duplikat kombinasi siswa + jenis tabungan
+        $exists = TabunganSiswaAccount::query()
+            ->where('siswa_id', (int) $validated['siswa_id'])
+            ->where('jenis_tabungan_id', (int) $validated['jenis_tabungan_id'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'Rekening untuk siswa dan jenis tabungan tersebut sudah ada.',
+            ], 422);
+        }
+
+        $payload = [
+            'siswa_id'          => (int) $validated['siswa_id'],
+            'jenis_tabungan_id' => (int) $validated['jenis_tabungan_id'],
+            'opened_at'         => $validated['opened_at'] ?? now()->toDateString(),
+            'setoran_awal'      => (int) $validated['setoran_awal'],
+            'is_active'         => $request->boolean('is_active', true),
+        ];
+
+        $account = $service->createAccount($payload, $request->user());
 
         return response()->json([
             'message' => 'Rekening tabungan berhasil ditambahkan.',
             'data' => $this->formatAccountRow($account->loadCount('transactions')),
-        ]);
+        ], 201);
     }
 
     public function updateAccount(
@@ -326,8 +367,15 @@ class TabunganSiswaController extends Controller
         TabunganSiswaAccount $account,
         TabunganSiswaService $service
     ): JsonResponse {
-        abort_unless($this->canManageAccounts($request->user()), 403);
-        abort_unless($this->canViewAccount($account, $request->user()), 404);
+        $user = $request->user();
+
+        // Task 5.3: siswa tidak boleh mengakses endpoint CRUD rekening admin
+        if ($user && $user->hasRole('siswa')) {
+            abort(403);
+        }
+
+        abort_unless($this->canManageAccounts($user), 403);
+        abort_unless($this->canViewAccount($account, $user), 404);
 
         $validated = $this->validateAccountUpdatePayload($request, $account);
         $updated = $service->updateAccount($account, $validated);
@@ -343,8 +391,22 @@ class TabunganSiswaController extends Controller
         TabunganSiswaAccount $account,
         TabunganSiswaService $service
     ): JsonResponse {
-        abort_unless($this->canManageAccounts($request->user()), 403);
-        abort_unless($this->canViewAccount($account, $request->user()), 404);
+        $user = $request->user();
+
+        // Task 5.3: siswa tidak boleh mengakses endpoint CRUD rekening admin
+        if ($user && $user->hasRole('siswa')) {
+            abort(403);
+        }
+
+        abort_unless($this->canManageAccounts($user), 403);
+        abort_unless($this->canViewAccount($account, $user), 404);
+
+        // Task 5.2: cek apakah rekening memiliki transaksi sebelum hapus
+        if ($account->transactions()->exists()) {
+            return response()->json([
+                'message' => 'Rekening tidak dapat dihapus karena memiliki riwayat transaksi.',
+            ], 422);
+        }
 
         $service->deleteAccount($account);
 

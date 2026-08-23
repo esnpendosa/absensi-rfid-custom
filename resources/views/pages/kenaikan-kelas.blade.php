@@ -11,9 +11,6 @@
                 <h3 class="font-bold text-indigo-900"><i class="fas fa-level-up-alt mr-2"></i>Proses Kenaikan Kelas</h3>
                 <p class="text-xs text-indigo-600">Pilih kelas asal dan tujuan, lalu tentukan siswa yang naik/tinggal.</p>
             </div>
-            <button id="btn-tutup-tahun-arsip" onclick="showModalArsip(event)" class="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm w-full sm:w-auto whitespace-nowrap">
-                <i class="fas fa-archive"></i> Tutup Tahun (Arsip)
-            </button>
         </div>
 
         <div class="p-4">

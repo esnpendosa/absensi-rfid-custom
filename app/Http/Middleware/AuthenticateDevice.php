@@ -13,7 +13,14 @@ class AuthenticateDevice
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $token = trim((string) $request->bearerToken());
+        $token = trim((string) (
+            $request->bearerToken() 
+            ?: $request->header('X-Device-Token') 
+            ?: $request->header('X-API-TOKEN') 
+            ?: $request->input('device_token') 
+            ?: $request->input('token')
+        ));
+
         if ($token === '') {
             return $this->unauthorizedResponse($request, 'missing_token');
         }

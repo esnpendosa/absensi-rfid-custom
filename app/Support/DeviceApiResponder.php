@@ -34,7 +34,8 @@ class DeviceApiResponder
         array|object|null $data = null,
         array $headers = []
     ): JsonResponse {
-        return self::response($request, false, $message, $statusCode, $data, $headers);
+        $httpStatus = self::isDeviceRequest($request) ? 200 : $statusCode;
+        return self::response($request, false, $message, $httpStatus, $data, $headers, $statusCode);
     }
 
     public static function response(
@@ -43,11 +44,12 @@ class DeviceApiResponder
         string $message,
         int $statusCode,
         array|object|null $data = null,
-        array $headers = []
+        array $headers = [],
+        ?int $logicalCode = null
     ): JsonResponse {
         return response()->json([
             'success' => $success,
-            'code' => $statusCode,
+            'code' => $logicalCode ?? $statusCode,
             'message' => $message,
             'data' => self::normalizeData($data),
         ], $statusCode, $headers);

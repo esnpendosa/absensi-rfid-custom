@@ -1,24 +1,31 @@
 @php
-    $imgLogo = $assets['logo'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getLogo() : asset('images/logo-smk.png'));
-    $imgBuilding = $assets['building'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getBuilding() : asset('images/hero-building-clean.png'));
-    $imgCard1 = $assets['card1'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getCard1() : asset('images/cards/art-01.png'));
-    $imgCard2 = $assets['card2'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getCard2() : asset('images/cards/art-02.png'));
-    $imgCard3 = $assets['card3'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getCard3() : asset('images/cards/art-03.png'));
-    $imgCard4 = $assets['card4'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getCard4() : asset('images/cards/art-04.png'));
-    $imgCard5 = $assets['card5'] ?? (\class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getCard5() : asset('images/cards/art-05.png'));
-    $totalSiswa = $totalSiswa ?? '1.248';
-    $totalGuru = $totalGuru ?? '86';
-    $tingkatKehadiran = $tingkatKehadiran ?? '92';
-    $totalAlumni = $totalAlumni ?? '3.562';
-    $schoolName = $schoolName ?? 'SMK Nurul Hidayah Bungah';
+    $sysName = $uiSettings['portal_system_name'] ?? 'SIMNUHA';
+    $schoolName = $uiSettings['website_nama'] ?? 'SMK Nurul Hidayah Bungah';
+    $imgLogo = $uiSettings['website_logo_url'] ?? (class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getLogo() : asset('images/logo-smk.png'));
+    $imgBuilding = $uiSettings['portal_building_photo_url'] ?? (class_exists(\App\Helpers\PortalAssets::class) ? \App\Helpers\PortalAssets::getBuilding() : asset('images/hero-building-clean.png'));
+    
+    $heroTitle = $uiSettings['portal_hero_title'] ?? 'SMK Nurul Hidayah Bungah';
+    $heroWords = explode(' ', $heroTitle);
+    if (count($heroWords) > 2) {
+        $lastWord = array_pop($heroWords);
+        $firstPart = implode(' ', $heroWords);
+    } else {
+        $firstPart = $heroTitle;
+        $lastWord = '';
+    }
+
+    $totalSiswa = $totalSiswa ?? '0';
+    $totalGuru = $totalGuru ?? '0';
+    $tingkatKehadiran = $tingkatKehadiran ?? '100';
+    $totalAlumni = $totalAlumni ?? '0';
 @endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NURIS - {{ $schoolName }} Integrated System</title>
-    <link rel="icon" type="image/png" href="{{ $imgLogo }}" />
+    <title>{{ $sysName }} - {{ $schoolName }}</title>
+    <link rel="icon" type="image/png" href="{{ $uiSettings['website_favicon_url'] ?? $imgLogo }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
@@ -78,7 +85,7 @@
             position: relative;
             border-radius: 24px;
             overflow: hidden;
-            min-height: 320px;
+            min-height: 330px;
             display: flex;
             align-items: center;
             padding: 2.5rem 3rem;
@@ -99,10 +106,10 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg,
-                    rgba(15, 23, 42, 0.80) 0%,
-                    rgba(30, 58, 138, 0.60) 50%,
-                    rgba(15, 23, 42, 0.35) 100%);
+            background: linear-gradient(90deg,
+                    rgba(15, 23, 42, 0.88) 0%,
+                    rgba(15, 23, 42, 0.60) 50%,
+                    rgba(15, 23, 42, 0.20) 100%);
         }
 
         .hero-section .hero-content {
@@ -425,17 +432,17 @@
             <!-- Brand -->
             <a href="{{ url('/') }}" class="flex items-center gap-3 group">
                 <div class="w-12 h-12 rounded-xl bg-white p-1.5 border border-slate-200 shadow-sm flex items-center justify-center transition group-hover:scale-105 shrink-0">
-                    <img src="{{ $imgLogo }}" alt="Logo {{ $schoolName }}" class="w-full h-full object-contain" />
+                    <img src="{{ $imgLogo }}" alt="Logo {{ $schoolName }}" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='{{ asset('images/logo-smk.png') }}';" />
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-2xl font-black tracking-tight text-slate-900 leading-none">NURIS</span>
+                        <span class="text-2xl font-black tracking-tight text-slate-900 leading-none">{{ $sysName }}</span>
                         <span class="relative flex h-2 w-2">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
                             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
                     </div>
-                    <p class="text-[10.5px] font-semibold text-slate-500 tracking-tight mt-0.5">Nurul Hidayah Integrated System</p>
+                    <p class="text-[10.5px] font-semibold text-slate-500 tracking-tight mt-0.5">{{ $uiSettings['website_slogan'] ?? 'Sistem Informasi Manajemen SMK Nurul Hidayah' }}</p>
                 </div>
             </a>
 
@@ -484,35 +491,53 @@
                 <!-- Badge -->
                 <div class="hero-badge">
                     <span class="badge-dot"></span>
-                    NURIS &bull; Integrated System Portal
+                    {{ $uiSettings['portal_hero_badge'] ?? ($sysName . ' • Integrated System Portal') }}
                 </div>
 
                 <!-- Title -->
-                <div class="hero-sub">Selamat Datang di</div>
-                <h1><span class="highlight">SMK Nurul Hidayah</span> Bungah</h1>
+                <div class="hero-sub">{{ $uiSettings['portal_hero_subtitle'] ?? 'Selamat Datang di' }}</div>
+                <h1>
+                    @if(!empty($lastWord))
+                        <span class="highlight">{{ $firstPart }}</span> {{ $lastWord }}
+                    @else
+                        <span class="highlight">{{ $heroTitle }}</span>
+                    @endif
+                </h1>
 
                 <!-- Tagline -->
                 <p class="tagline">
                     <i class="fas fa-quote-left"></i>
-                    Bersama Teknologi, Kita Wujudkan Sekolah Unggul, Berkarakter dan Berdaya Saing
+                    {{ $uiSettings['portal_tagline'] ?? 'Digitalisasi Layanan Sekolah dalam Satu Platform.' }}
                 </p>
 
                 <!-- Meta Info Realtime -->
                 <div class="hero-meta">
-                    <span class="meta-item">
-                        <i class="far fa-calendar-alt"></i>
-                        {{ \Carbon\Carbon::now()->locale('id')->translatedFormat('l, d F Y') }}
-                    </span>
-                    <span class="meta-divider"></span>
-                    <span class="meta-item">
-                        <i class="fas fa-award"></i>
-                        SMK Pusat Keunggulan
-                    </span>
-                    <span class="meta-divider"></span>
-                    <span class="meta-item">
-                        <i class="fas fa-map-pin"></i>
-                        Bungah, Gresik
-                    </span>
+                    @if (($uiSettings['portal_hero_date_show'] ?? '1') === '1')
+                        <span class="meta-item">
+                            <i class="far fa-calendar-alt"></i>
+                            {{ \Carbon\Carbon::now()->locale('id')->translatedFormat('l, d F Y') }}
+                        </span>
+                    @endif
+
+                    @if (!empty($uiSettings['portal_hero_meta_tag']))
+                        @if (($uiSettings['portal_hero_date_show'] ?? '1') === '1')
+                            <span class="meta-divider"></span>
+                        @endif
+                        <span class="meta-item">
+                            <i class="fas fa-award"></i>
+                            {{ $uiSettings['portal_hero_meta_tag'] }}
+                        </span>
+                    @endif
+
+                    @if (!empty($uiSettings['portal_hero_location']))
+                        @if (($uiSettings['portal_hero_date_show'] ?? '1') === '1' || !empty($uiSettings['portal_hero_meta_tag']))
+                            <span class="meta-divider"></span>
+                        @endif
+                        <span class="meta-item">
+                            <i class="fas fa-map-pin"></i>
+                            {{ $uiSettings['portal_hero_location'] }}
+                        </span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -521,102 +546,115 @@
         <div class="text-center space-y-1.5">
             <div class="gradient-bar"></div>
             <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                <span class="text-blue-600">NURIS</span> Dashboard
+                {{ $uiSettings['portal_section_title'] ?? ($sysName . ' Dashboard') }}
             </h2>
-            <p class="text-sm font-medium text-slate-500">Akses cepat ke 5 sub aplikasi NURIS</p>
+            <p class="text-sm font-medium text-slate-500">
+                {{ $uiSettings['portal_section_subtitle'] ?? ('Akses cepat ke sub aplikasi ' . $sysName) }}
+            </p>
         </div>
 
         <!-- ── 5 SUB-APPLICATION CARDS ── -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 
             <!-- 1. Absen -->
+            @if (($uiSettings['portal_card1_active'] ?? '1') === '1')
             <div class="card-app animate-slide-up">
                 <div>
                     <div class="card-image">
-                        <img src="{{ $imgCard1 }}" alt="NURIS Absen" loading="lazy" />
+                        <img src="{{ $uiSettings['portal_card1_photo_url'] ?? asset('images/cards/art-01.png') }}" alt="{{ $uiSettings['portal_card1_title'] ?? ($sysName . ' Absen') }}" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/cards/art-01.png') }}';" />
                     </div>
-                    <h3 class="card-title">NURIS <span class="text-emerald-600">Absen</span></h3>
-                    <p class="card-desc">Sistem absensi guru, siswa, dan tenaga kependidikan secara realtime</p>
+                    <h3 class="card-title">{{ $uiSettings['portal_card1_title'] ?? ($sysName . ' Absen') }}</h3>
+                    <p class="card-desc">{{ $uiSettings['portal_card1_desc'] ?? 'Sistem absensi guru, siswa, dan tenaga kependidikan secara realtime' }}</p>
                 </div>
                 <div class="pt-2">
-                    <a href="{{ url('/scanner') }}" class="btn-app btn-absen">
-                        <span>Buka Aplikasi</span>
+                    <a href="{{ url($uiSettings['portal_card1_url'] ?? '/scanner') }}" class="btn-app btn-absen">
+                        <span>{{ $uiSettings['portal_card1_btn_text'] ?? 'Buka Aplikasi' }}</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
             </div>
+            @endif
 
             <!-- 2. Finance -->
+            @if (($uiSettings['portal_card2_active'] ?? '1') === '1')
             <div class="card-app animate-slide-up">
                 <div>
                     <div class="card-image">
-                        <img src="{{ $imgCard2 }}" alt="NURIS Finance" loading="lazy" />
+                        <img src="{{ $uiSettings['portal_card2_photo_url'] ?? asset('images/cards/art-02.png') }}" alt="{{ $uiSettings['portal_card2_title'] ?? ($sysName . ' Finance') }}" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/cards/art-02.png') }}';" />
                     </div>
-                    <h3 class="card-title">NURIS <span class="text-blue-600">Finance</span></h3>
-                    <p class="card-desc">Pengelolaan kas, SPP, dan tagihan keuangan sekolah transparan</p>
+                    <h3 class="card-title">{{ $uiSettings['portal_card2_title'] ?? ($sysName . ' Finance') }}</h3>
+                    <p class="card-desc">{{ $uiSettings['portal_card2_desc'] ?? 'Pengelolaan kas, SPP, dan tagihan keuangan sekolah transparan' }}</p>
                 </div>
                 <div class="pt-2">
-                    <a href="{{ url('/keuangan/pembayaran') }}" class="btn-app btn-finance">
-                        <span>Buka Aplikasi</span>
+                    <a href="{{ url($uiSettings['portal_card2_url'] ?? '/keuangan/pembayaran') }}" class="btn-app btn-finance">
+                        <span>{{ $uiSettings['portal_card2_btn_text'] ?? 'Buka Aplikasi' }}</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
             </div>
+            @endif
 
             <!-- 3. Letter -->
+            @if (($uiSettings['portal_card3_active'] ?? '1') === '1')
             <div class="card-app animate-slide-up">
                 <div>
                     <div class="card-image">
-                        <img src="{{ $imgCard3 }}" alt="NURIS Letter" loading="lazy" />
+                        <img src="{{ $uiSettings['portal_card3_photo_url'] ?? asset('images/cards/art-03.png') }}" alt="{{ $uiSettings['portal_card3_title'] ?? ($sysName . ' Letter') }}" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/cards/art-03.png') }}';" />
                     </div>
-                    <h3 class="card-title">NURIS <span class="text-purple-600">Letter</span></h3>
-                    <p class="card-desc">Surat-menyurat dan administrasi tata usaha terintegrasi</p>
+                    <h3 class="card-title">{{ $uiSettings['portal_card3_title'] ?? ($sysName . ' Letter') }}</h3>
+                    <p class="card-desc">{{ $uiSettings['portal_card3_desc'] ?? 'Surat-menyurat dan administrasi tata usaha terintegrasi' }}</p>
                 </div>
                 <div class="pt-2">
-                    <a href="{{ url('/persuratan') }}" class="btn-app btn-letter">
-                        <span>Buka Aplikasi</span>
+                    <a href="{{ url($uiSettings['portal_card3_url'] ?? '/persuratan') }}" class="btn-app btn-letter">
+                        <span>{{ $uiSettings['portal_card3_btn_text'] ?? 'Buka Aplikasi' }}</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
             </div>
+            @endif
 
             <!-- 4. Alumni -->
+            @if (($uiSettings['portal_card4_active'] ?? '1') === '1')
             <div class="card-app animate-slide-up">
                 <div>
                     <div class="card-image">
-                        <img src="{{ $imgCard4 }}" alt="NURIS Alumni" loading="lazy" />
+                        <img src="{{ $uiSettings['portal_card4_photo_url'] ?? asset('images/cards/art-04.png') }}" alt="{{ $uiSettings['portal_card4_title'] ?? ($sysName . ' Alumni') }}" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/cards/art-04.png') }}';" />
                     </div>
-                    <h3 class="card-title">NURIS <span class="text-amber-600">Alumni</span></h3>
-                    <p class="card-desc">Tracer study dan database alumni terintegrasi secara digital</p>
+                    <h3 class="card-title">{{ $uiSettings['portal_card4_title'] ?? ($sysName . ' Alumni') }}</h3>
+                    <p class="card-desc">{{ $uiSettings['portal_card4_desc'] ?? 'Tracer study dan database alumni terintegrasi secara digital' }}</p>
                 </div>
                 <div class="pt-2">
-                    <a href="{{ url('/data-alumni') }}" class="btn-app btn-alumni">
-                        <span>Buka Aplikasi</span>
+                    <a href="{{ url($uiSettings['portal_card4_url'] ?? '/data-alumni') }}" class="btn-app btn-alumni">
+                        <span>{{ $uiSettings['portal_card4_btn_text'] ?? 'Buka Aplikasi' }}</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
             </div>
+            @endif
 
             <!-- 5. Dashboard -->
+            @if (($uiSettings['portal_card5_active'] ?? '1') === '1')
             <div class="card-app animate-slide-up">
                 <div>
                     <div class="card-image">
-                        <img src="{{ $imgCard5 }}" alt="NURIS Dashboard" loading="lazy" />
+                        <img src="{{ $uiSettings['portal_card5_photo_url'] ?? asset('images/cards/art-05.png') }}" alt="{{ $uiSettings['portal_card5_title'] ?? ($sysName . ' Dashboard') }}" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('images/cards/art-05.png') }}';" />
                     </div>
-                    <h3 class="card-title">NURIS <span class="text-cyan-600">Dashboard</span></h3>
-                    <p class="card-desc">Statistik, laporan dan monitoring analitik data sekolah realtime</p>
+                    <h3 class="card-title">{{ $uiSettings['portal_card5_title'] ?? ($sysName . ' Dashboard') }}</h3>
+                    <p class="card-desc">{{ $uiSettings['portal_card5_desc'] ?? 'Statistik, laporan dan monitoring analitik data sekolah realtime' }}</p>
                 </div>
                 <div class="pt-2">
-                    <a href="{{ url('/dashboard') }}" class="btn-app btn-dashboard">
-                        <span>Buka Aplikasi</span>
+                    <a href="{{ url($uiSettings['portal_card5_url'] ?? '/dashboard') }}" class="btn-app btn-dashboard">
+                        <span>{{ $uiSettings['portal_card5_btn_text'] ?? 'Buka Aplikasi' }}</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
             </div>
+            @endif
 
         </div>
 
         <!-- ── STATS CARDS REALTIME ── -->
+        @if (($uiSettings['portal_stats_show'] ?? '1') === '1')
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
             <!-- 1. Total Siswa -->
             <div class="stat-card animate-slide-up">
@@ -624,10 +662,10 @@
                     <i class="fas fa-users"></i>
                 </div>
                 <div>
-                    <div class="stat-label">Total Siswa</div>
+                    <div class="stat-label">{{ $uiSettings['portal_stat1_label'] ?? 'Total Siswa' }}</div>
                     <div class="stat-value">{{ $totalSiswa }}</div>
                     <div class="stat-change">
-                        <i class="fas fa-check-circle"></i> Data Aktif
+                        <i class="fas fa-check-circle"></i> {{ $uiSettings['portal_stat1_sub'] ?? 'Data Aktif' }}
                     </div>
                 </div>
             </div>
@@ -638,10 +676,10 @@
                     <i class="fas fa-chalkboard-teacher"></i>
                 </div>
                 <div>
-                    <div class="stat-label">Guru &amp; Tendik</div>
+                    <div class="stat-label">{{ $uiSettings['portal_stat2_label'] ?? 'Guru & Tendik' }}</div>
                     <div class="stat-value">{{ $totalGuru }}</div>
                     <div class="stat-change">
-                        <i class="fas fa-check-circle"></i> Terdaftar
+                        <i class="fas fa-check-circle"></i> {{ $uiSettings['portal_stat2_sub'] ?? 'Terdaftar' }}
                     </div>
                 </div>
             </div>
@@ -652,9 +690,9 @@
                     <i class="fas fa-calendar-check"></i>
                 </div>
                 <div>
-                    <div class="stat-label">Kehadiran</div>
+                    <div class="stat-label">{{ $uiSettings['portal_stat3_label'] ?? 'Kehadiran' }}</div>
                     <div class="stat-value">{{ $tingkatKehadiran }}%</div>
-                    <div class="text-[0.68rem] font-semibold text-emerald-600">Realtime Presensi</div>
+                    <div class="text-[0.68rem] font-semibold text-emerald-600">{{ $uiSettings['portal_stat3_sub'] ?? 'Realtime Presensi' }}</div>
                 </div>
             </div>
 
@@ -664,12 +702,112 @@
                     <i class="fas fa-user-graduate"></i>
                 </div>
                 <div>
-                    <div class="stat-label">Total Alumni</div>
+                    <div class="stat-label">{{ $uiSettings['portal_stat4_label'] ?? 'Total Alumni' }}</div>
                     <div class="stat-value">{{ $totalAlumni }}</div>
-                    <div class="text-[0.68rem] font-semibold text-slate-500">Database Tracer</div>
+                    <div class="text-[0.68rem] font-semibold text-slate-500">{{ $uiSettings['portal_stat4_sub'] ?? 'Database Tracer' }}</div>
                 </div>
             </div>
         </div>
+        @endif
+
+        <!-- ── VISI & MISI ── -->
+        @php
+            $portalVisi = $uiSettings['portal_visi'] ?? '';
+            $portalMisi = $uiSettings['portal_misi'] ?? '';
+            $showVisiMisi = !empty(trim($portalVisi)) || !empty(trim($portalMisi));
+        @endphp
+        @if ($showVisiMisi)
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <!-- Visi Card (5 cols) -->
+            @if (!empty(trim($portalVisi)))
+            <div class="lg:col-span-5 bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 text-xl shadow-inner">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10.5px] font-bold text-blue-300 uppercase tracking-widest block">Visi Sekolah</span>
+                            <h3 class="text-xl font-black tracking-tight text-white">VISI</h3>
+                        </div>
+                    </div>
+                    <blockquote class="text-slate-100 text-sm sm:text-base font-medium leading-relaxed italic border-l-4 border-blue-400 pl-4 my-4">
+                        &ldquo;{{ $portalVisi }}&rdquo;
+                    </blockquote>
+
+                    <!-- 4 Pilar Visi -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                        <div class="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-2 text-center">
+                            <div class="w-7 h-7 mx-auto rounded-lg bg-purple-500/30 text-purple-300 flex items-center justify-center text-xs mb-1">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="text-[10px] font-bold tracking-tight uppercase text-purple-200 block">Berkarakter</span>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-2 text-center">
+                            <div class="w-7 h-7 mx-auto rounded-lg bg-amber-500/30 text-amber-300 flex items-center justify-center text-xs mb-1">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <span class="text-[10px] font-bold tracking-tight uppercase text-amber-200 block">Kreatif</span>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-2 text-center">
+                            <div class="w-7 h-7 mx-auto rounded-lg bg-emerald-500/30 text-emerald-300 flex items-center justify-center text-xs mb-1">
+                                <i class="fas fa-certificate"></i>
+                            </div>
+                            <span class="text-[10px] font-bold tracking-tight uppercase text-emerald-200 block">Berkompeten</span>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-2 text-center">
+                            <div class="w-7 h-7 mx-auto rounded-lg bg-blue-500/30 text-blue-300 flex items-center justify-center text-xs mb-1">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <span class="text-[10px] font-bold tracking-tight uppercase text-blue-200 block">Disiplin</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Tagline Islam -->
+                <div class="relative z-10 pt-5 mt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-bold text-blue-200 tracking-wider uppercase">
+                    <span class="flex items-center gap-1.5"><i class="fas fa-moon text-blue-300"></i> IMAN</span>
+                    <span class="flex items-center gap-1.5"><i class="fas fa-book-open text-blue-300"></i> ILMU</span>
+                    <span class="flex items-center gap-1.5"><i class="fas fa-hand-holding-heart text-blue-300"></i> AMAL</span>
+                    <span class="flex items-center gap-1.5"><i class="fas fa-mosque text-blue-300"></i> AKHLAK</span>
+                </div>
+
+                <!-- Background Glow -->
+                <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            </div>
+            @endif
+
+            <!-- Misi Card (7 cols) -->
+            @if (!empty(trim($portalMisi)))
+            <div class="{{ !empty(trim($portalVisi)) ? 'lg:col-span-7' : 'lg:col-span-12' }} bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 text-xl shadow-inner">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10.5px] font-bold text-emerald-600 uppercase tracking-widest block">Misi Sekolah</span>
+                            <h3 class="text-xl font-black tracking-tight text-slate-900">MISI</h3>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        @foreach (array_filter(array_map('trim', explode("\n", $portalMisi))) as $i => $baris)
+                        <div class="flex items-start gap-3 p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition">
+                            <span class="flex-shrink-0 w-7 h-7 rounded-xl bg-blue-900 text-white font-extrabold text-xs flex items-center justify-center shadow-xs mt-0.5">
+                                {{ $i + 1 }}
+                            </span>
+                            <p class="text-xs sm:text-sm font-medium text-slate-700 leading-relaxed pt-0.5">
+                                {{ $baris }}
+                            </p>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
 
     </main>
 
@@ -677,11 +815,10 @@
     <footer class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 border-t border-slate-200/80 mt-6 relative z-10">
         <div class="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
             <div class="font-medium text-center sm:text-left">
-                &copy; {{ date('Y') }} {{ $schoolName }} &bull;
-                <span class="font-bold text-slate-700">NURIS</span> &mdash; Nurul Hidayah Integrated System
+                {{ str_replace('{year}', date('Y'), $uiSettings['portal_footer_text'] ?? ('© ' . date('Y') . ' ' . $schoolName . ' • ' . $sysName . ' — Nurul Hidayah Integrated System')) }}
             </div>
             <div class="font-motto text-xl font-bold text-blue-800 tracking-wide text-center sm:text-right">
-                Berilmu, Berakhlak, Berdaya Saing
+                {{ $uiSettings['portal_motto'] ?? 'Berilmu, Berakhlak, Berdaya Saing' }}
             </div>
         </div>
     </footer>

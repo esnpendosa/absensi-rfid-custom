@@ -38,22 +38,8 @@
                       </a>
                   @endcan
 
-                  @can('scanner.use')
-                      <a href="{{ route('scanner') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('scanner') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-qrcode w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold">Scan Absensi</span>
-                      </a>
-                  @endcan
-
-                  @can('monitoring.view')
-                      <a href="{{ route('monitoring') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('monitoring') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-eye w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold">Monitoring</span>
-                      </a>
-                  @endcan
-
-                  @if (auth()->user()?->can('siswa.view') || auth()->user()?->can('alumni.view') || auth()->user()?->can('guru.view') || auth()->user()?->can('piket.view') || auth()->user()?->can('settings.users.manage'))
-                      <details data-user-management {{ request()->routeIs('data-siswa') || request()->routeIs('data-alumni') || request()->routeIs('data-guru') || request()->routeIs('data-piket') || request()->routeIs('role-permission.users.*') ? 'open' : '' }}>
+                  @if (auth()->user()?->can('siswa.view') || auth()->user()?->can('guru.view') || auth()->user()?->can('piket.view') || auth()->user()?->can('settings.users.manage'))
+                      <details data-user-management {{ request()->routeIs('data-siswa') || request()->routeIs('data-guru') || request()->routeIs('data-piket') || request()->routeIs('role-permission.users.*') ? 'open' : '' }}>
                           <summary class="list-none flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-gray-300 hover:bg-white/10 hover:text-white cursor-pointer">
                               <i class="fas fa-users w-4 text-center"></i>
                               <span class="sidebar-label text-[15px] font-semibold flex-1">Kelola Member</span>
@@ -79,18 +65,12 @@
                                       <span class="sidebar-label text-[14px] font-medium">Data User</span>
                                   </a>
                               @endcan
-                              @can('alumni.view')
-                                  <a href="{{ route('data-alumni') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('data-alumni') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                                      <i class="fas fa-user-check w-4 text-center"></i>
-                                      <span class="sidebar-label text-[14px] font-medium">Data Alumni</span>
-                                  </a>
-                              @endcan
                           </div>
                       </details>
                   @endif
 
-                  @if (auth()->user()?->can('kelas.manage') || auth()->user()?->can('kenaikan-kelas.manage'))
-                      <details data-akademik-menu {{ request()->routeIs('kelola-kelas') || request()->routeIs('kenaikan-kelas') ? 'open' : '' }}>
+                  @if (auth()->user()?->can('kelas.manage') || auth()->user()?->can('kenaikan-kelas.manage') || auth()->user()?->can('alumni.view'))
+                      <details data-akademik-menu {{ request()->routeIs('kelola-kelas') || request()->routeIs('kenaikan-kelas') || request()->routeIs('data-alumni') ? 'open' : '' }}>
                           <summary class="list-none flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-gray-300 hover:bg-white/10 hover:text-white cursor-pointer">
                               <i class="fas fa-school w-4 text-center"></i>
                               <span class="sidebar-label text-[15px] font-semibold flex-1">Akademik</span>
@@ -109,24 +89,108 @@
                                       <span class="sidebar-label text-[14px] font-medium">Kenaikan Kelas</span>
                                   </a>
                               @endcan
+                              @can('alumni.view')
+                                  <a href="{{ route('data-alumni') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('data-alumni') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-user-check w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Data Alumni</span>
+                                  </a>
+                              @endcan
                           </div>
                       </details>
                   @endif
 
                   {{-- Menu Pembelajaran & Pelanggaran Siswa disembunyikan agar sidebar fokus pada 4 Pilar utama --}}
                   
-                  @if (auth()->user()?->can('izin-sakit.request') || auth()->user()?->can('izin-sakit.approve') || auth()->user()?->can('izin-sakit.manage'))
-                      <a href="{{ route('izin-sakit.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('izin-sakit.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-notes-medical w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold flex-1">Izin / Sakit</span>
-                          @if ($sidebarIzinSakitPendingCount > 0)
-                              <span class="sidebar-label inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-300 text-amber-900 text-[10px] font-bold">
-                                  {{ $sidebarIzinSakitPendingCount > 99 ? '99+' : $sidebarIzinSakitPendingCount }}
-                              </span>
-                          @endif
-                      </a>
+                  @if (auth()->user()?->can('scanner.use') || auth()->user()?->can('absen.manage') || auth()->user()?->can('kartu-absensi.manage') || auth()->user()?->can('monitoring.view') || auth()->user()?->can('izin-sakit.request') || auth()->user()?->can('izin-sakit.approve') || auth()->user()?->can('izin-sakit.manage') || auth()->user()?->can('rekap-absensi.view') || auth()->user()?->can('rekap-absensi-pelajaran.view') || auth()->user()?->can('rekap-bulanan.view') || auth()->user()?->can('rekap-tahunan.view'))
+                      <details data-absensi-menu {{ request()->routeIs('scanner') || request()->routeIs('kelola-absen') || request()->routeIs('kartu-absensi.*') || request()->routeIs('monitoring') || request()->routeIs('monitoring-guru') || request()->routeIs('izin-sakit.*') || request()->routeIs('rekap-absensi') || request()->routeIs('laporan-absensi-guru') || request()->routeIs('rekap-absensi-pelajaran') || request()->routeIs('rekap-bulanan') || request()->routeIs('rekap-tahunan') ? 'open' : '' }}>
+                          <summary class="list-none flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-gray-300 hover:bg-white/10 hover:text-white cursor-pointer">
+                              <i class="fas fa-fingerprint w-4 text-center"></i>
+                              <span class="sidebar-label text-[15px] font-semibold flex-1">Absensi</span>
+                              @if ($sidebarIzinSakitPendingCount > 0)
+                                  <span class="sidebar-label inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-300 text-amber-900 text-[10px] font-bold mr-1">
+                                      {{ $sidebarIzinSakitPendingCount > 99 ? '99+' : $sidebarIzinSakitPendingCount }}
+                                  </span>
+                              @endif
+                              <i class="fas fa-chevron-right settings-chevron sidebar-label text-[11px] opacity-80"></i>
+                          </summary>
+                          <div class="mt-2 pl-2 space-y-2">
+                              @can('scanner.use')
+                                  <a href="{{ route('scanner') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('scanner') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-qrcode w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Scan Absensi</span>
+                                  </a>
+                              @endcan
+                              @can('absen.manage')
+                                  <a href="{{ route('kelola-absen') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('kelola-absen') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-clock w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Jam & Jadwal Absen</span>
+                                  </a>
+                              @endcan
+                              @can('kartu-absensi.manage')
+                                  <a href="{{ route('kartu-absensi.index') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('kartu-absensi.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-id-card-alt w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Kartu Absensi</span>
+                                  </a>
+                              @endcan
+                              @can('monitoring.view')
+                                  <a href="{{ route('monitoring') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('monitoring') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-eye w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Monitoring Siswa</span>
+                                  </a>
+                              @endcan
+                              @if (auth()->user()?->can('guru.view') || auth()->user()?->can('monitoring.view') || auth()->user()?->can('settings.users.manage'))
+                                  <a href="{{ route('monitoring-guru') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('monitoring-guru') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-chalkboard-teacher w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Monitoring Guru</span>
+                                  </a>
+                              @endif
+                              @if (auth()->user()?->can('izin-sakit.request') || auth()->user()?->can('izin-sakit.approve') || auth()->user()?->can('izin-sakit.manage'))
+                                  <a href="{{ route('izin-sakit.index') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('izin-sakit.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-notes-medical w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium flex-1">Izin / Sakit</span>
+                                      @if ($sidebarIzinSakitPendingCount > 0)
+                                          <span class="sidebar-label inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-300 text-amber-900 text-[10px] font-bold">
+                                              {{ $sidebarIzinSakitPendingCount > 99 ? '99+' : $sidebarIzinSakitPendingCount }}
+                                          </span>
+                                      @endif
+                                  </a>
+                              @endif
+                              @can('rekap-absensi.view')
+                                  <a href="{{ route('rekap-absensi') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-absensi') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-clipboard-list w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Laporan Absensi Siswa</span>
+                                  </a>
+                              @endcan
+                              @if (auth()->user()?->can('guru.view') || auth()->user()?->can('rekap-absensi.view') || auth()->user()?->can('settings.users.manage'))
+                                  <a href="{{ route('laporan-absensi-guru') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('laporan-absensi-guru') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-file-invoice w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Laporan Absensi Guru</span>
+                                  </a>
+                              @endif
+                              @can('rekap-absensi-pelajaran.view')
+                                  <a href="{{ route('rekap-absensi-pelajaran') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-absensi-pelajaran') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-book-reader w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Absensi Pelajaran</span>
+                                  </a>
+                              @endcan
+                              @can('rekap-bulanan.view')
+                                  <a href="{{ route('rekap-bulanan') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-bulanan') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-calendar-alt w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Rekap Bulanan</span>
+                                  </a>
+                              @endcan
+                              @can('rekap-tahunan.view')
+                                  <a href="{{ route('rekap-tahunan') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-tahunan') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                                      <i class="fas fa-calendar-week w-4 text-center"></i>
+                                      <span class="sidebar-label text-[14px] font-medium">Rekap Tahunan</span>
+                                  </a>
+                              @endcan
+                          </div>
+                      </details>
                   @endif
+
                   <!-- KEUANGAN SEKOLAH -->
+                  @if(!auth()->user()?->hasRole('siswa'))
                   <details data-keuangan-menu {{ request()->routeIs('keuangan.*') || request()->routeIs('tabungan-siswa.*') ? 'open' : '' }}>
                       <summary class="list-none flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-gray-300 hover:bg-white/10 hover:text-white cursor-pointer">
                           <i class="fas fa-coins w-4 text-center text-amber-300"></i>
@@ -137,9 +201,7 @@
                           <a href="{{ url('/keuangan/pembayaran') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('keuangan.pembayaran.*') ? 'bg-white/15 text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                               <i class="fas fa-cash-register w-4 text-center"></i>
                               <span class="sidebar-label text-[14px] font-medium">
-                                  @if(auth()->user()?->hasRole('siswa'))
-                                      Tagihan Saya
-                                  @elseif(auth()->user()?->hasRole('wakel'))
+                                  @if(auth()->user()?->hasRole('wakel'))
                                       Tagihan Kelas
                                   @else
                                       Kasir Pembayaran
@@ -166,20 +228,7 @@
                           @endif
                       </div>
                   </details>
-                  @can('absen.manage')
-                      <a href="{{ route('kelola-absen') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('kelola-absen') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-clock w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold">Jam & Jadwal Absen</span>
-                      </a>
-                  @endcan
-
-                  @can('kartu-absensi.manage')
-                      <a href="{{ route('kartu-absensi.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('kartu-absensi.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-id-card-alt w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold">Kartu Absensi</span>
-                      </a>
-                  @endcan
-
+                  @endif
                   @can('notifications.send')
                       <a href="{{ route('notifications.send.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('notifications.send.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                           <i class="fas fa-paper-plane w-4 text-center"></i>
@@ -194,17 +243,14 @@
                       </a>
                   @endif
 
-                  @can('arsip.manage')
-                      <a href="{{ route('arsip.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('arsip.*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                          <i class="fas fa-box-archive w-4 text-center"></i>
-                          <span class="sidebar-label text-[15px] font-semibold">Daftar Arsip</span>
-                      </a>
-                  @endcan
-
                   @if (auth()->user()?->hasRole('siswa') && auth()->user()?->can('kartu-siswa.view'))
                       <a href="{{ route('mata-pelajaran-saya') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('mata-pelajaran-saya') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                           <i class="fas fa-book w-4 text-center"></i>
                           <span class="sidebar-label text-[15px] font-semibold">Mata Pelajaran</span>
+                      </a>
+                      <a href="{{ url('/keuangan/pembayaran') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('keuangan.pembayaran*') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                          <i class="fas fa-file-invoice w-4 text-center"></i>
+                          <span class="sidebar-label text-[15px] font-semibold">Tagihan Saya</span>
                       </a>
                       <a href="{{ route('presensi-saya') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition {{ request()->routeIs('presensi-saya') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
                           <i class="fas fa-chart-pie w-4 text-center"></i>
@@ -228,41 +274,7 @@
                       </a>
                   @endif
 
-                  @if (auth()->user()?->can('rekap-absensi.view') || auth()->user()?->can('rekap-absensi-pelajaran.view') || auth()->user()?->can('rekap-bulanan.view') || auth()->user()?->can('rekap-tahunan.view'))
-                      <details data-rekap-absensi {{ request()->routeIs('rekap-absensi') || request()->routeIs('rekap-absensi-pelajaran') || request()->routeIs('rekap-bulanan') || request()->routeIs('rekap-tahunan') ? 'open' : '' }}>
-                          <summary class="list-none flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-gray-300 hover:bg-white/10 hover:text-white cursor-pointer">
-                              <i class="fas fa-calendar-check w-4 text-center"></i>
-                              <span class="sidebar-label text-[15px] font-semibold flex-1">Rekap Absensi</span>
-                              <i class="fas fa-chevron-right settings-chevron sidebar-label text-[11px] opacity-80"></i>
-                          </summary>
-                          <div class="mt-2 pl-2 space-y-2">
-                              @can('rekap-absensi.view')
-                                  <a href="{{ route('rekap-absensi') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-absensi') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                                      <i class="fas fa-clipboard-list w-4 text-center"></i>
-                                      <span class="sidebar-label text-[14px] font-medium">Laporan Absensi</span>
-                                  </a>
-                              @endcan
-                              @can('rekap-absensi-pelajaran.view')
-                                  <a href="{{ route('rekap-absensi-pelajaran') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-absensi-pelajaran') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                                      <i class="fas fa-book-reader w-4 text-center"></i>
-                                      <span class="sidebar-label text-[14px] font-medium">Absensi Pelajaran</span>
-                                  </a>
-                              @endcan
-                              @can('rekap-bulanan.view')
-                                  <a href="{{ route('rekap-bulanan') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-bulanan') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                                      <i class="fas fa-calendar-alt w-4 text-center"></i>
-                                      <span class="sidebar-label text-[14px] font-medium">Rekap Bulanan</span>
-                                  </a>
-                              @endcan
-                              @can('rekap-tahunan.view')
-                                  <a href="{{ route('rekap-tahunan') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg transition {{ request()->routeIs('rekap-tahunan') ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
-                                      <i class="fas fa-calendar-week w-4 text-center"></i>
-                                      <span class="sidebar-label text-[14px] font-medium">Rekap Tahunan</span>
-                                  </a>
-                              @endcan
-                          </div>
-                      </details>
-                  @endif
+
 
                   @if (auth()->user()?->can('settings.roles.manage') || auth()->user()?->can('settings.general.manage') || auth()->user()?->can('settings.devices.manage') || auth()->user()?->can('settings.notifications.manage') || auth()->user()?->can('settings.api.manage') || auth()->user()?->can('settings.backup.manage') || auth()->user()?->can('settings.update.manage'))
                       <details data-superadmin-settings {{ request()->routeIs('role-permission.index') || request()->routeIs('settings.general.*') || request()->routeIs('settings.devices.*') || request()->routeIs('settings.notifications.*') || request()->routeIs('settings.api-access.*') || request()->routeIs('settings.backup.*') || request()->routeIs('settings.update.*') ? 'open' : '' }}>
@@ -336,4 +348,20 @@
               <p class="text-[10px] text-blue-200/70 leading-tight">Develop by <a href="https://kangdigital.web.id" target="_blank" class="text-blue-100 font-semibold hover:text-white transition-colors">Kang Digital</a></p>
               <p class="text-[9px] text-blue-300/50">kangdigital.web.id</p>
           </div>
+          <script>
+          document.addEventListener('DOMContentLoaded', function() {
+              var sidebarDetails = document.querySelectorAll('#sidebarMenu details');
+              sidebarDetails.forEach(function(detail) {
+                  detail.addEventListener('toggle', function() {
+                      if (detail.open) {
+                          sidebarDetails.forEach(function(other) {
+                              if (other !== detail && other.open) {
+                                  other.removeAttribute('open');
+                              }
+                          });
+                      }
+                  });
+              });
+          });
+          </script>
       </aside>

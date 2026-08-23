@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function formatRupiah(num) {
-    return 'Rp ' . Number(num || 0).toLocaleString('id-ID');
+    return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 }
 
 function debounceLaporanSearch() {
@@ -242,6 +242,7 @@ function cetakLaporanPdf() {
     const kelas = document.getElementById('filterKelas')?.value || '';
     const posId = document.getElementById('filterPos')?.value || '';
     const metode = document.getElementById('filterMetode')?.value || '';
+    const search = document.getElementById('filterSearch')?.value || '';
 
     const url = new URL("{{ url('/keuangan/laporan/cetak') }}", window.location.origin);
     if (tglMulai) url.searchParams.set('tanggal_mulai', tglMulai);
@@ -249,6 +250,7 @@ function cetakLaporanPdf() {
     if (kelas) url.searchParams.set('kelas', kelas);
     if (posId) url.searchParams.set('pos_id', posId);
     if (metode) url.searchParams.set('metode', metode);
+    if (search) url.searchParams.set('search', search);
 
     window.open(url.toString(), '_blank');
 }

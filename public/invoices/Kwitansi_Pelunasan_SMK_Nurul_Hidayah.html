@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kwitansi Pelunasan #KW/035/KD-PELUNASAN/VIII/2026 - SMK Nurul Hidayah</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f1f5f9; padding: 30px 15px; color: #1e293b; }
+        .kwitansi-card { max-width: 820px; margin: 0 auto; background: #ffffff; padding: 45px 50px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #e2e8f0; position: relative; }
+        
+        .watermark-paid {
+            position: absolute;
+            top: 48%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 85px;
+            font-weight: 900;
+            color: rgba(22, 163, 74, 0.12);
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            border: 6px dashed rgba(22, 163, 74, 0.18);
+            padding: 10px 40px;
+            border-radius: 16px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; border-bottom: 3px double #1e3a8a; padding-bottom: 15px; }
+        .header-table td { vertical-align: middle; }
+        .brand-title { font-size: 24px; font-weight: 800; color: #1e3a8a; letter-spacing: 0.5px; }
+        .brand-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
+        .kwitansi-title { font-size: 26px; font-weight: 900; text-align: right; color: #0f172a; letter-spacing: 1px; }
+        .kwitansi-no { text-align: right; font-size: 13px; color: #475569; font-weight: 600; margin-top: 4px; }
+        
+        .main-form-table { width: 100%; border-collapse: collapse; margin-top: 25px; margin-bottom: 30px; }
+        .main-form-table td { padding: 12px 6px; font-size: 14px; vertical-align: top; }
+        .label-col { width: 26%; font-weight: 700; color: #334155; }
+        .separator-col { width: 3%; font-weight: 700; color: #334155; }
+        .value-col { width: 71%; color: #0f172a; }
+
+        .terbilang-box { background: #f8fafc; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 6px; font-style: italic; font-weight: 600; color: #1e40af; }
+        
+        .nominal-badge-container { margin-top: 15px; display: flex; align-items: center; justify-content: space-between; }
+        .nominal-badge { background: #1e3a8a; color: #ffffff; font-size: 22px; font-weight: 800; padding: 12px 28px; border-radius: 8px; display: inline-block; letter-spacing: 1px; }
+        .status-badge { background: #dcfce7; color: #15803d; border: 2px solid #86efac; font-size: 14px; font-weight: 800; padding: 10px 20px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .footer-table { width: 100%; border-collapse: collapse; margin-top: 40px; }
+        .footer-table td { vertical-align: top; width: 50%; }
+        .payment-info { font-size: 12.5px; color: #475569; line-height: 1.6; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; width: 90%; }
+        .sig-box { text-align: right; font-size: 13px; }
+        .sig-name { font-weight: 700; color: #0f172a; margin-top: 55px; text-decoration: underline; }
+        .sig-title { color: #64748b; font-size: 12px; }
+
+        .print-btn { display: inline-block; background: #16a34a; color: #fff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; margin-bottom: 20px; border: none; cursor: pointer; }
+        .print-btn:hover { background: #15803d; }
+
+        @media print {
+            body { background: transparent; padding: 0; }
+            .kwitansi-card { box-shadow: none; padding: 25px 30px; max-width: 100%; border: 1px solid #94a3b8; }
+            .print-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div style="max-width: 820px; margin: 0 auto; text-align: right;">
+        <button class="print-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF Kwitansi</button>
+    </div>
+
+    <div class="kwitansi-card">
+        <div class="watermark-paid">LUNAS</div>
+
+        <table class="header-table">
+            <tr>
+                <td>
+                    <div class="brand-title">KANG DIGITAL</div>
+                    <div class="brand-sub">Software Development & IT Infrastructure Services</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Jl. Panglima Sudirman No.10, Sungonlegowo, Bungah, Gresik • Telp: 085730302827</div>
+                </td>
+                <td>
+                    <div class="kwitansi-title">KWITANSI PELUNASAN</div>
+                    <div class="kwitansi-no">No: #KW/035/KD-PELUNASAN/VIII/2026</div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="main-form-table">
+            <tr>
+                <td class="label-col">Telah Diterima Dari</td>
+                <td class="separator-col">:</td>
+                <td class="value-col">
+                    <strong>SMK NURUL HIDAYAH BUNGAH</strong><br>
+                    <span style="font-size: 12.5px; color: #475569;">Jl. Kebonsari Perengkulon, Desa Melirang, Kec. Bungah, Kab. Gresik, Jawa Timur 61152</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-col">Uang Sejumlah</td>
+                <td class="separator-col">:</td>
+                <td class="value-col">
+                    <div class="terbilang-box">
+                        " Tiga Juta Lima Ratus Ribu Rupiah "
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-col">Untuk Pembayaran</td>
+                <td class="separator-col">:</td>
+                <td class="value-col">
+                    <strong>Pelunasan 100% (Lunas) Pembelian & Implementasi Sistem SIMNUHA Terpadu</strong>
+                    <ul style="margin-top: 6px; padding-left: 20px; font-size: 12.5px; color: #334155; line-height: 1.5;">
+                        <li>Pengembangan & Implementasi Sistem SIMNUHA (5 Modul: Absen, Finance, Letter, Alumni, Dashboard) & Portal Dinamis</li>
+                        <li>Sewa Server Cloud Shared Hosting (hPanel) + Domain Resmi Sekolah <code>smknurulhidayah.my.id</code> + SSL HTTPS (1 Tahun)</li>
+                        <li>Jasa Pemeliharaan Sistem, Maintenance & Bantuan Teknis (Technical Support 1 Tahun)</li>
+                        <li>Setup Server hPanel, Konfigurasi Database & Modul Buku Panduan Admin/Guru</li>
+                    </ul>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
+                        <em>(Sesuai dengan Invoice Resmi No: #035/INV-KD/VIII/2026)</em>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="nominal-badge-container">
+            <div class="nominal-badge">
+                Rp 3.500.000,-
+            </div>
+            <div class="status-badge">
+                ✓ LUNAS / PAID IN FULL
+            </div>
+        </div>
+
+        <table class="footer-table">
+            <tr>
+                <td>
+                    <div class="payment-info">
+                        <strong>Metode Pembayaran:</strong> Transfer Bank<br>
+                        <strong>Bank Tujuan:</strong> Blu BCA (BCA Digital)<br>
+                        <strong>No. Rekening:</strong> 000237216008<br>
+                        <strong>Atas Nama:</strong> Muhammad As’ad Muhibbin Akbar<br>
+                        <strong>Status Transaksi:</strong> Berhasil & Diterima Penuh
+                    </div>
+                </td>
+                <td class="sig-box">
+                    <div>Gresik, 22 Agustus 2026</div>
+                    <div style="font-weight: 600; color: #1e3a8a; margin-top: 3px;">Penerima (Kang Digital),</div>
+                    <div class="sig-name">Muhammad As'ad Muhibbin Akbar</div>
+                    <div class="sig-title">Software Engineer & Founder Kang Digital</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</body>
+</html>

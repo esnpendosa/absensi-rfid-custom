@@ -77,7 +77,6 @@ class RolePermissionController extends Controller
         'jadwal-pelajaran.manage' => ['label' => 'Kelola Jadwal Pelajaran', 'description' => 'Boleh mengatur jadwal pelajaran.', 'group' => 'akademik'],
         'jurnal-mengajar.manage' => ['label' => 'Kelola Jurnal Mengajar', 'description' => 'Boleh mengisi dan mengelola jurnal mengajar.', 'group' => 'akademik'],
         'kenaikan-kelas.manage' => ['label' => 'Kelola Kenaikan Kelas', 'description' => 'Boleh memproses kenaikan kelas dan kelulusan.', 'group' => 'akademik'],
-        'arsip.manage' => ['label' => 'Kelola Arsip', 'description' => 'Boleh membuka dan mengelola arsip data.', 'group' => 'akademik'],
         'persuratan.view' => ['label' => 'Lihat Persuratan', 'description' => 'Boleh membuka daftar surat masuk dan keluar.', 'group' => 'administrasi'],
         'persuratan.manage' => ['label' => 'Kelola Persuratan', 'description' => 'Boleh menambah, mengubah, dan menghapus surat masuk atau keluar.', 'group' => 'administrasi'],
         'rekap-bulanan.view' => ['label' => 'Lihat Rekap Bulanan', 'description' => 'Boleh membuka laporan rekap bulanan.', 'group' => 'laporan'],

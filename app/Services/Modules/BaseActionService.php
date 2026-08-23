@@ -114,11 +114,15 @@ abstract class BaseActionService
             return null;
         }
 
+        if ($auth instanceof User) {
+            return $auth;
+        }
+
         if (method_exists($auth, 'relationLoaded') && $auth->relationLoaded('user') && $auth->user instanceof User) {
             return $auth->user;
         }
 
-        $userId = (int) ($auth->user_id ?? 0);
+        $userId = (int) ($auth->user_id ?? $auth->id ?? 0);
         if ($userId <= 0) {
             return null;
         }
@@ -200,8 +204,16 @@ abstract class BaseActionService
             return '';
         }
 
+        if ($auth instanceof User) {
+            $userRole = $this->getPrimaryRoleForUser($auth);
+            if ($userRole === 'super-admin') {
+                return 'admin';
+            }
+            return $userRole;
+        }
+
         $siswaId = (int) ($auth->siswa_id ?? 0);
-        $userId = (int) ($auth->user_id ?? 0);
+        $userId = (int) ($auth->user_id ?? $auth->id ?? 0);
         if ($siswaId > 0 && $userId <= 0) {
             return 'siswa';
         }

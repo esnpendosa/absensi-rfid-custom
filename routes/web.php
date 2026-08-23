@@ -7,7 +7,6 @@ use App\Http\Controllers\DataPiketController;
 use App\Http\Controllers\DataSiswaController;
 use App\Http\Controllers\AbsensiPelajaranController;
 use App\Http\Controllers\ApiAccessController;
-use App\Http\Controllers\ArsipController;
 use App\Http\Controllers\BackupRestoreSettingController;
 use App\Http\Controllers\DeviceSettingController;
 use App\Http\Controllers\GeneralSettingController;
@@ -18,6 +17,8 @@ use App\Http\Controllers\KelolaKelasController;
 use App\Http\Controllers\KartuSiswaController;
 use App\Http\Controllers\KenaikanKelasController;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\MonitoringGuruController;
+use App\Http\Controllers\LaporanAbsensiGuruController;
 use App\Http\Controllers\NotificationSettingController;
 use App\Http\Controllers\PoinPelanggaranController;
 use App\Http\Controllers\PersuratanController;
@@ -45,11 +46,30 @@ Route::get('/install/website', [InstallController::class, 'websiteStep'])->name(
 Route::post('/install/website', [InstallController::class, 'install'])->name('install.website.store');
 
 Route::get('/storage/{path}', function (string $path) {
-    $fullPath = storage_path('app/public/' . $path);
+    $cleanPath = ltrim(str_replace('..', '', $path), '/\\');
+    $fullPath = storage_path('app/public/' . $cleanPath);
+
     if (!file_exists($fullPath)) {
-        abort(404);
+        $publicStoragePath = public_path('storage/' . $cleanPath);
+        if (file_exists($publicStoragePath)) {
+            $fullPath = $publicStoragePath;
+        } else {
+            // Fallback for settings images
+            $baseName = basename($cleanPath);
+            $publicImg = public_path('images/' . $baseName);
+            if (file_exists($publicImg)) {
+                $fullPath = $publicImg;
+            } elseif (str_contains($cleanPath, 'building')) {
+                $fullPath = public_path('images/hero-building-clean.png');
+            } elseif (str_contains($cleanPath, 'logo')) {
+                $fullPath = public_path('images/logo-smk.png');
+            } else {
+                abort(404);
+            }
+        }
     }
-    $mimeType = mime_content_type($fullPath) ?: 'image/png';
+
+    $mimeType = @mime_content_type($fullPath) ?: 'image/png';
     return response()->file($fullPath, [
         'Content-Type' => $mimeType,
         'Cache-Control' => 'public, max-age=86400',
@@ -64,6 +84,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
     Route::get('/data-siswa', [DataSiswaController::class, 'index'])->middleware('permission:siswa.view')->name('data-siswa');
     Route::get('/data-alumni', [DataAlumniController::class, 'index'])->middleware('permission:alumni.view')->name('data-alumni');
+    Route::get('/data-alumni/laporan/cetak', [DataAlumniController::class, 'cetakLaporan'])->middleware('permission:alumni.view')->name('data-alumni.laporan.cetak');
+    Route::get('/data-alumni/laporan/export', [DataAlumniController::class, 'exportCsv'])->middleware('permission:alumni.view')->name('data-alumni.laporan.export');
     Route::post('/data-alumni/store', [DataAlumniController::class, 'store'])->name('data-alumni.store');
     Route::post('/data-alumni/tracer', [DataAlumniController::class, 'updateTracer'])->name('data-alumni.tracer');
     Route::post('/data-alumni/destroy', [DataAlumniController::class, 'destroy'])->name('data-alumni.destroy');
@@ -73,13 +95,14 @@ Route::middleware('auth')->group(function () {
     Route::prefix('keuangan')
         ->name('keuangan.')
         ->group(function () {
-            Route::get('/pos', [KeuanganSekolahController::class, 'indexPos'])->name('pos.index');
-            Route::get('/pos/data', [KeuanganSekolahController::class, 'dataPos'])->name('pos.data');
-            Route::post('/pos', [KeuanganSekolahController::class, 'storePos'])->name('pos.store');
-            Route::put('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'updatePos'])->name('pos.update');
-            Route::delete('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'destroyPos'])->name('pos.destroy');
+            Route::middleware('permission:keuangan.pos.manage')->group(function () {
+                Route::get('/pos', [KeuanganSekolahController::class, 'indexPos'])->name('pos.index');
+                Route::get('/pos/data', [KeuanganSekolahController::class, 'dataPos'])->name('pos.data');
+                Route::post('/pos', [KeuanganSekolahController::class, 'storePos'])->name('pos.store');
+                Route::put('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'updatePos'])->name('pos.update');
+                Route::delete('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'destroyPos'])->name('pos.destroy');
+            });
 
-            Route::get('/pembayaran', [KeuanganSekolahController::class, 'indexPembayaran'])->name('pembayaran');
             Route::get('/pembayaran', [KeuanganSekolahController::class, 'indexPembayaran'])->name('pembayaran.index');
             Route::get('/pembayaran/data', [KeuanganSekolahController::class, 'dataPembayaran'])->name('pembayaran.data');
             Route::post('/pembayaran/sync', [KeuanganSekolahController::class, 'syncSemuaTagihan'])->name('pembayaran.sync');
@@ -89,18 +112,20 @@ Route::middleware('auth')->group(function () {
             Route::get('/kuitansi/{transaksi}', [KeuanganSekolahController::class, 'cetakKuitansi'])->name('kuitansi');
 
             // LAPORAN KEUANGAN
+            // Middleware permission dihapus dari level route; pembatasan akses dilakukan
+            // di level controller (hasRole('siswa') → abort(403))
             Route::get('/laporan', [KeuanganSekolahController::class, 'indexLaporan'])->name('laporan.index');
             Route::get('/laporan/data', [KeuanganSekolahController::class, 'dataLaporan'])->name('laporan.data');
             Route::get('/laporan/cetak', [KeuanganSekolahController::class, 'cetakLaporan'])->name('laporan.cetak');
         });
     Route::get('/data-siswa/card-capture-stream', [KartuAbsensiController::class, 'captureStream'])
-        ->middleware('permission:siswa.view')
+        ->middleware('permission:siswa.view|guru.view')
         ->name('data-siswa.card-capture-stream');
     Route::post('/data-siswa/card-capture-start', [KartuAbsensiController::class, 'startCapture'])
-        ->middleware('permission:siswa.view')
+        ->middleware('permission:siswa.view|guru.view')
         ->name('data-siswa.card-capture-start');
     Route::get('/data-siswa/card-capture-poll', [KartuAbsensiController::class, 'pollCapture'])
-        ->middleware('permission:siswa.view')
+        ->middleware('permission:siswa.view|guru.view')
         ->name('data-siswa.card-capture-poll');
     Route::get('/data-guru', [DataGuruController::class, 'index'])->middleware('permission:guru.view')->name('data-guru');
     Route::get('/data-piket', [DataPiketController::class, 'index'])->middleware('permission:piket.view')->name('data-piket');
@@ -251,17 +276,19 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:tabungan-siswa.view|tabungan-siswa.manage|tabungan-siswa.report|tabungan-siswa.jenis.manage|tabungan-siswa.self.view')
         ->name('tabungan-siswa.rekening.statement');
     Route::get('/kenaikan-kelas', [KenaikanKelasController::class, 'index'])->middleware('permission:kenaikan-kelas.manage')->name('kenaikan-kelas');
-    Route::middleware('permission:arsip.manage')
-        ->prefix('arsip')
-        ->name('arsip.')
-        ->group(function () {
-            Route::get('/', [ArsipController::class, 'index'])->name('index');
-            Route::get('/data', [ArsipController::class, 'data'])->name('data');
-            Route::get('/{file}/download', [ArsipController::class, 'download'])->name('download');
-            Route::delete('/{file}', [ArsipController::class, 'destroy'])->name('destroy');
-        });
+
 
     Route::get('/monitoring', [MonitoringController::class, 'index'])->middleware('permission:monitoring.view')->name('monitoring');
+    Route::get('/monitoring-guru', [MonitoringGuruController::class, 'index'])->name('monitoring-guru');
+    Route::post('/monitoring-guru/monitoring', [MonitoringGuruController::class, 'monitoring'])->name('monitoring-guru.data');
+    Route::post('/monitoring-guru/mark-pulang-massal', [MonitoringGuruController::class, 'markPulangMassal'])->name('monitoring-guru.mark-pulang-massal');
+    Route::post('/monitoring-guru/update-status', [MonitoringGuruController::class, 'updateStatus'])->name('monitoring-guru.update-status');
+    Route::post('/monitoring-guru/export-excel', [MonitoringGuruController::class, 'exportExcel'])->name('monitoring-guru.export-excel');
+
+    Route::get('/laporan-absensi-guru', [LaporanAbsensiGuruController::class, 'index'])->name('laporan-absensi-guru');
+    Route::post('/laporan-absensi-guru/list', [LaporanAbsensiGuruController::class, 'list'])->name('laporan-absensi-guru.list');
+    Route::post('/laporan-absensi-guru/export-excel', [LaporanAbsensiGuruController::class, 'exportExcel'])->name('laporan-absensi-guru.export-excel');
+
     Route::get('/rekap-bulanan', [RekapBulananController::class, 'index'])->middleware('permission:rekap-bulanan.view')->name('rekap-bulanan');
     Route::get('/rekap-tahunan', [RekapTahunanController::class, 'index'])->middleware('permission:rekap-tahunan.view')->name('rekap-tahunan');
     Route::get('/laporan-absensi', [RekapAbsensiController::class, 'index'])->middleware('permission:rekap-absensi.view')->name('rekap-absensi');

@@ -129,30 +129,68 @@ class KeuanganSekolahController extends Controller
     public function indexPembayaran(): View
     {
         $this->ensureBillingSynced();
+
+        $user = auth()->user();
+
+        if ($user && $user->hasRole('siswa')) {
+            // Siswa hanya melihat tagihan milik dirinya sendiri
+            $siswa = Siswa::where('nisn', $user->username)
+                ->orWhere('nama', $user->name)
+                ->first();
+
+            $isSiswa = true;
+            $posList = PosKeuangan::where('is_active', true)->orderBy('nama')->get();
+
+            return view('pages.keuangan-pembayaran', compact('posList', 'siswa', 'isSiswa'));
+        }
+
         $posList = PosKeuangan::where('is_active', true)->orderBy('nama')->get();
         $kelasList = Siswa::query()->whereNotNull('kelas')->distinct()->pluck('kelas');
-        return view('pages.keuangan-pembayaran', compact('posList', 'kelasList'));
+        $isSiswa = false;
+
+        return view('pages.keuangan-pembayaran', compact('posList', 'kelasList', 'isSiswa'));
     }
 
     public function ensureBillingSynced(): void
     {
-        $posAktif = PosKeuangan::where('is_active', true)->get();
-        if ($posAktif->isEmpty()) return;
+        try {
+            // Jika tabel siswa atau tabel pos keuangan kosong, tidak ada yang perlu di-sync
+            if (Siswa::count() === 0 || PosKeuangan::count() === 0) {
+                return;
+            }
 
-        $siswaList = Siswa::all();
-        if ($siswaList->isEmpty()) return;
+            $posAktif = PosKeuangan::where('is_active', true)->get();
+            if ($posAktif->isEmpty()) return;
 
-        $bulanList = ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'];
+            $siswaList = Siswa::all();
+            if ($siswaList->isEmpty()) return;
 
-        foreach ($siswaList as $siswa) {
-            foreach ($posAktif as $pos) {
-                if ($pos->tipe === 'bulanan') {
-                    foreach ($bulanList as $bln) {
+            $bulanList = ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'];
+
+            foreach ($siswaList as $siswa) {
+                foreach ($posAktif as $pos) {
+                    if ($pos->tipe === 'bulanan') {
+                        foreach ($bulanList as $bln) {
+                            TagihanSiswa::firstOrCreate(
+                                [
+                                    'pos_keuangan_id' => $pos->id,
+                                    'siswa_id' => $siswa->id,
+                                    'bulan' => $bln,
+                                    'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
+                                ],
+                                [
+                                    'nominal' => $pos->nominal_default,
+                                    'terbayar' => 0,
+                                    'sisa' => $pos->nominal_default,
+                                    'status' => 'belum_bayar',
+                                ]
+                            );
+                        }
+                    } else {
                         TagihanSiswa::firstOrCreate(
                             [
                                 'pos_keuangan_id' => $pos->id,
                                 'siswa_id' => $siswa->id,
-                                'bulan' => $bln,
                                 'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
                             ],
                             [
@@ -163,22 +201,10 @@ class KeuanganSekolahController extends Controller
                             ]
                         );
                     }
-                } else {
-                    TagihanSiswa::firstOrCreate(
-                        [
-                            'pos_keuangan_id' => $pos->id,
-                            'siswa_id' => $siswa->id,
-                            'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
-                        ],
-                        [
-                            'nominal' => $pos->nominal_default,
-                            'terbayar' => 0,
-                            'sisa' => $pos->nominal_default,
-                            'status' => 'belum_bayar',
-                        ]
-                    );
                 }
             }
+        } catch (\Throwable $e) {
+            \Log::warning('ensureBillingSynced gagal: ' . $e->getMessage());
         }
     }
 
@@ -502,41 +528,56 @@ class KeuanganSekolahController extends Controller
         return view('pages.keuangan-laporan', compact('posList', 'kelasList'));
     }
 
-    public function dataLaporan(Request $request): JsonResponse
+    /**
+     * Private helper: membangun query TransaksiKeuangan dengan semua parameter filter.
+     * Filter hanya diterapkan jika parameter filled() (tidak kosong).
+     * Mendukung parameter baru (tanggal_mulai, tanggal_selesai, kelas_id, pos_keuangan_id,
+     * metode_pembayaran) maupun parameter lama (kelas, pos_id, metode) untuk backward-compat.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function buildLaporanQuery(Request $request)
     {
-        $user = auth()->user();
-        if ($user && $user->hasRole('siswa')) {
-            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'], 403);
-        }
-
+        $user  = auth()->user();
         $query = TransaksiKeuangan::query()->with(['siswa', 'posKeuangan', 'tagihan', 'user']);
 
+        // Scope wakel hanya ke kelasnya sendiri
         if ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
             $query->whereHas('siswa', fn ($q) => $q->where('kelas', $user->kelas));
         }
 
+        // Filter tanggal mulai — gunakan created_at (parameter baru) atau tanggal_bayar (lama)
         if ($request->filled('tanggal_mulai')) {
-            $query->whereDate('tanggal_bayar', '>=', $request->tanggal_mulai);
+            $query->whereDate('created_at', '>=', $request->tanggal_mulai);
         }
 
+        // Filter tanggal selesai
         if ($request->filled('tanggal_selesai')) {
-            $query->whereDate('tanggal_bayar', '<=', $request->tanggal_selesai);
+            $query->whereDate('created_at', '<=', $request->tanggal_selesai);
         }
 
-        if ($request->filled('kelas')) {
-            $query->whereHas('siswa', function ($q) use ($request) {
-                $q->where('kelas', $request->kelas);
-            });
+        // Filter kelas — parameter baru: kelas_id, parameter lama: kelas
+        if ($request->filled('kelas_id')) {
+            $query->whereHas('siswa', fn ($q) => $q->where('kelas_id', $request->kelas_id));
+        } elseif ($request->filled('kelas')) {
+            $query->whereHas('siswa', fn ($q) => $q->where('kelas', $request->kelas));
         }
 
-        if ($request->filled('pos_id')) {
+        // Filter pos keuangan — parameter baru: pos_keuangan_id, parameter lama: pos_id
+        if ($request->filled('pos_keuangan_id')) {
+            $query->where('pos_keuangan_id', $request->pos_keuangan_id);
+        } elseif ($request->filled('pos_id')) {
             $query->where('pos_keuangan_id', $request->pos_id);
         }
 
-        if ($request->filled('metode')) {
+        // Filter metode pembayaran — parameter baru: metode_pembayaran, parameter lama: metode
+        if ($request->filled('metode_pembayaran')) {
+            $query->where('metode_pembayaran', $request->metode_pembayaran);
+        } elseif ($request->filled('metode')) {
             $query->where('metode_pembayaran', $request->metode);
         }
 
+        // Filter pencarian teks (nomor transaksi, nama siswa, NISN)
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -548,20 +589,31 @@ class KeuanganSekolahController extends Controller
             });
         }
 
+        return $query;
+    }
+
+    public function dataLaporan(Request $request): JsonResponse
+    {
+        $user = auth()->user();
+        if ($user && $user->hasRole('siswa')) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'], 403);
+        }
+
+        $query = $this->buildLaporanQuery($request);
         $transaksiList = $query->orderByDesc('id')->get();
 
-        $totalKasMasuk = (float) $transaksiList->sum('nominal_bayar');
+        $totalKas       = (float) $transaksiList->sum('nominal_bayar');
         $totalTransaksi = $transaksiList->count();
-        $totalTunai = (float) $transaksiList->where('metode_pembayaran', 'Tunai')->sum('nominal_bayar');
-        $totalNonTunai = $totalKasMasuk - $totalTunai;
+        $totalTunai     = (float) $transaksiList->where('metode_pembayaran', 'Tunai')->sum('nominal_bayar');
+        $totalNonTunai  = $totalKas - $totalTunai;
 
         return response()->json([
             'success' => true,
-            'data' => $transaksiList,
+            'data'    => $transaksiList,
             'summary' => [
-                'total_kas' => $totalKasMasuk,
+                'total_kas'       => $totalKas,
                 'total_transaksi' => $totalTransaksi,
-                'total_tunai' => $totalTunai,
+                'total_tunai'     => $totalTunai,
                 'total_non_tunai' => $totalNonTunai,
             ],
         ]);
@@ -574,43 +626,35 @@ class KeuanganSekolahController extends Controller
             abort(403, 'Akses Ditolak: Anda tidak memiliki izin mencetak laporan kas.');
         }
 
-        $query = TransaksiKeuangan::query()->with(['siswa', 'posKeuangan', 'tagihan', 'user']);
+        $transaksiList = $this->buildLaporanQuery($request)
+            ->orderBy('created_at')
+            ->get();
 
-        if ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
-            $query->whereHas('siswa', fn ($q) => $q->where('kelas', $user->kelas));
-        }
+        $totalKas      = (float) $transaksiList->sum('nominal_bayar');
+        $totalTransaksi = $transaksiList->count();
+        $totalTunai    = (float) $transaksiList->where('metode_pembayaran', 'Tunai')->sum('nominal_bayar');
+        $totalNonTunai = $totalKas - $totalTunai;
 
-        if ($request->filled('tanggal_mulai')) {
-            $query->whereDate('tanggal_bayar', '>=', $request->tanggal_mulai);
-        }
-
-        if ($request->filled('tanggal_selesai')) {
-            $query->whereDate('tanggal_bayar', '<=', $request->tanggal_selesai);
-        }
-
-        if ($request->filled('kelas')) {
-            $query->whereHas('siswa', function ($q) use ($request) {
-                $q->where('kelas', $request->kelas);
-            });
-        }
-
-        if ($request->filled('pos_id')) {
-            $query->where('pos_keuangan_id', $request->pos_id);
-        }
-
-        if ($request->filled('metode')) {
-            $query->where('metode_pembayaran', $request->metode);
-        }
-
-        $transaksiList = $query->orderBy('tanggal_bayar')->get();
-        $totalKas = (float) $transaksiList->sum('nominal_bayar');
-        $filterInfo = [
-            'tanggal_mulai' => $request->tanggal_mulai ?: 'Awal',
-            'tanggal_selesai' => $request->tanggal_selesai ?: date('Y-m-d'),
-            'kelas' => $request->kelas ?: 'Semua Kelas',
-            'pos' => $request->pos_id ? (PosKeuangan::find($request->pos_id)?->nama ?? 'Semua Pos') : 'Semua Pos',
+        $summary = [
+            'total_kas'       => $totalKas,
+            'total_transaksi' => $totalTransaksi,
+            'total_tunai'     => $totalTunai,
+            'total_non_tunai' => $totalNonTunai,
         ];
 
-        return view('pdf.laporan-keuangan', compact('transaksiList', 'totalKas', 'filterInfo'));
+        $filterInfo = [
+            'tanggal_mulai'   => $request->tanggal_mulai  ?: 'Awal',
+            'tanggal_selesai' => $request->tanggal_selesai ?: date('Y-m-d'),
+            'kelas'           => $request->kelas_id
+                                     ? $request->kelas_id
+                                     : ($request->kelas ?: 'Semua Kelas'),
+            'pos'             => ($request->pos_keuangan_id ?? $request->pos_id)
+                                     ? (PosKeuangan::find($request->pos_keuangan_id ?? $request->pos_id)?->nama ?? 'Semua Pos')
+                                     : 'Semua Pos',
+            'metode'          => $request->metode_pembayaran ?: ($request->metode ?: 'Semua Metode'),
+            'search'          => $request->search ?: null,
+        ];
+
+        return view('pdf.laporan-keuangan', compact('transaksiList', 'summary', 'totalKas', 'filterInfo'));
     }
 }

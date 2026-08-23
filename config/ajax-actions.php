@@ -44,6 +44,7 @@ return [
         'getSiswaByKelas' => 'ajax.students.by-class',
         'processIndividualPromotion' => 'ajax.promotions.individual',
         'lookupSiswaForScan' => 'ajax.students.lookup-scan',
+        'lookupGuruForScan' => 'ajax.staff.guru.lookup-scan',
         'batchScanAbsensi' => 'ajax.attendance.batch-scan',
         'scanRfidAbsensi' => 'ajax.attendance.scan-rfid',
         'getPelajaranSessionsToday' => 'ajax.lessons.sessions.today',

@@ -59,6 +59,9 @@ class StaffRecordService extends BaseActionService
                     'name' => $user->name ?: $user->username,
                     'email' => $user->email,
                     'kelas' => $user->kelas,
+                    'status' => $user->status ?: 'Aktif',
+                    'jabatan' => $user->jabatan,
+                    'nomorKartu' => $user->nomor_kartu,
                     'jenisKelamin' => $user->jenis_kelamin,
                     'tanggalLahir' => $tanggalLahir,
                     'agama' => $user->agama,
@@ -99,6 +102,9 @@ class StaffRecordService extends BaseActionService
                     'name' => $user->name ?: $user->username,
                     'email' => $user->email,
                     'kelas' => $user->kelas,
+                    'status' => $user->status ?: 'Aktif',
+                    'jabatan' => $user->jabatan,
+                    'nomorKartu' => $user->nomor_kartu,
                     'jenisKelamin' => $user->jenis_kelamin,
                     'tanggalLahir' => $tanggalLahir,
                     'agama' => $user->agama,
@@ -132,6 +138,9 @@ class StaffRecordService extends BaseActionService
         $agama = $this->normalizeOptionalString($args[7] ?? null);
         $noHp = $this->normalizeOptionalString($args[8] ?? null);
         $alamat = $this->normalizeOptionalString($args[9] ?? null);
+        $status = $this->normalizeOptionalString($args[10] ?? null) ?: 'Aktif';
+        $nomorKartu = $this->normalizeOptionalString($args[11] ?? null);
+        $jabatan = $this->normalizeOptionalString($args[12] ?? null);
 
         $tanggalLahir = null;
         if ($tanggalLahirInput !== '') {
@@ -166,13 +175,20 @@ class StaffRecordService extends BaseActionService
             return ['success' => false, 'message' => 'No HP sudah digunakan.'];
         }
 
-        DB::transaction(function () use ($username, $name, $email, $password, $kelas, $jenisKelamin, $tanggalLahir, $agama, $noHp, $alamat): void {
+        if ($nomorKartu !== null && User::query()->where('nomor_kartu', $nomorKartu)->exists()) {
+            return ['success' => false, 'message' => 'Nomor kartu sudah digunakan oleh akun lain.'];
+        }
+
+        DB::transaction(function () use ($username, $name, $email, $password, $kelas, $status, $nomorKartu, $jabatan, $jenisKelamin, $tanggalLahir, $agama, $noHp, $alamat): void {
             $user = User::query()->create([
                 'username' => $username,
                 'name' => $name,
                 'email' => $email,
                 'password' => bcrypt($password),
                 'kelas' => $kelas,
+                'status' => $status,
+                'nomor_kartu' => $nomorKartu,
+                'jabatan' => $jabatan,
                 'jenis_kelamin' => $jenisKelamin,
                 'tanggal_lahir' => $tanggalLahir,
                 'agama' => $agama,
@@ -205,6 +221,9 @@ class StaffRecordService extends BaseActionService
         $agama = $this->normalizeOptionalString($args[8] ?? null);
         $noHp = $this->normalizeOptionalString($args[9] ?? null);
         $alamat = $this->normalizeOptionalString($args[10] ?? null);
+        $status = $this->normalizeOptionalString($args[11] ?? null) ?: 'Aktif';
+        $nomorKartu = $this->normalizeOptionalString($args[12] ?? null);
+        $jabatan = $this->normalizeOptionalString($args[13] ?? null);
 
         $tanggalLahir = null;
         if ($tanggalLahirInput !== '') {
@@ -256,6 +275,16 @@ class StaffRecordService extends BaseActionService
             return ['success' => false, 'message' => 'No HP sudah digunakan.'];
         }
 
+        if (
+            $nomorKartu !== null &&
+            User::query()
+                ->where('nomor_kartu', $nomorKartu)
+                ->where('username', '!=', $oldUsername)
+                ->exists()
+        ) {
+            return ['success' => false, 'message' => 'Nomor kartu sudah digunakan oleh akun lain.'];
+        }
+
         $previousKelas = $this->normalizeKelasValue($user->kelas);
 
         $payload = [
@@ -263,6 +292,9 @@ class StaffRecordService extends BaseActionService
             'name' => $name,
             'email' => $email,
             'kelas' => $kelas,
+            'status' => $status,
+            'nomor_kartu' => $nomorKartu,
+            'jabatan' => $jabatan,
             'jenis_kelamin' => $jenisKelamin,
             'tanggal_lahir' => $tanggalLahir,
             'agama' => $agama,
@@ -835,4 +867,73 @@ class StaffRecordService extends BaseActionService
         ];
     }
 
+    public function lookupGuruForScan(array $args, $auth): array
+    {
+        if ($denied = $this->requireAdminOrKepsek($auth)) {
+            return $denied;
+        }
+
+        $queryStr = trim((string) ($args[0] ?? ''));
+        if ($queryStr === '') {
+            return ['success' => false, 'message' => 'Kode atau data scan tidak boleh kosong.'];
+        }
+
+        $cleanQuery = $queryStr;
+        if (str_starts_with($queryStr, 'GURU:')) {
+            $cleanQuery = substr($queryStr, 5);
+        } elseif (str_starts_with($queryStr, '{') && str_ends_with($queryStr, '}')) {
+            $decoded = json_decode($queryStr, true);
+            if (is_array($decoded)) {
+                $cleanQuery = $decoded['username'] ?? $decoded['id'] ?? $queryStr;
+            }
+        }
+
+        $cleanQuery = trim($cleanQuery);
+
+        $user = User::role(['wakel', 'piket'])
+            ->where(function ($q) use ($cleanQuery) {
+                $q->where('username', $cleanQuery)
+                    ->orWhere('name', 'like', "%{$cleanQuery}%")
+                    ->orWhere('email', $cleanQuery)
+                    ->orWhere('no_hp', $cleanQuery)
+                    ->orWhere('nomor_kartu', $cleanQuery);
+            })
+            ->first();
+
+        if (!$user) {
+            return ['success' => false, 'message' => "Data guru dengan identitas/kode '{$queryStr}' tidak ditemukan."];
+        }
+
+        $tanggalLahir = null;
+        if (!empty($user->tanggal_lahir)) {
+            try {
+                $tanggalLahir = Carbon::parse((string) $user->tanggal_lahir)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $tanggalLahir = null;
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Data guru berhasil ditemukan.',
+            'data' => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'name' => $user->name ?: $user->username,
+                'email' => $user->email,
+                'kelas' => $user->kelas,
+                'status' => $user->status ?: 'Aktif',
+                    'jabatan' => $user->jabatan,
+                'nomorKartu' => $user->nomor_kartu,
+                    'nomorKartu' => $user->nomor_kartu,
+                'jenisKelamin' => $user->jenis_kelamin,
+                'tanggalLahir' => $tanggalLahir,
+                'agama' => $user->agama,
+                'noHp' => $user->no_hp,
+                'alamat' => $user->alamat,
+                'avatar' => $user->avatar_path ? asset('storage/' . $user->avatar_path) : null,
+                'role' => $this->getPrimaryRoleForUser($user),
+            ],
+        ];
+    }
 }

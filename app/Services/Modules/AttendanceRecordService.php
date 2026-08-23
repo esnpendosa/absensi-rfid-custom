@@ -624,10 +624,30 @@ class AttendanceRecordService extends BaseActionService
         foreach ($normalizedCodes as $nisn) {
             $siswa = $studentsByNisn->get($nisn);
             if (!$siswa) {
+                $guru = User::query()
+                    ->where('username', $nisn)
+                    ->orWhere('nomor_kartu', $nisn)
+                    ->first();
+
+                if ($guru) {
+                    $now = Carbon::now();
+                    $results[] = [
+                        'success' => true,
+                        'nisn' => $guru->username,
+                        'nama' => $guru->name,
+                        'kelas' => $guru->jabatan ?: 'Guru / Staf',
+                        'status' => 'Hadir',
+                        'jamDatang' => $now->format('H:i:s'),
+                        'message' => 'Absensi Guru berhasil: ' . $guru->name,
+                        'role' => 'guru',
+                    ];
+                    continue;
+                }
+
                 $results[] = [
                     'success' => false,
                     'nisn' => $nisn,
-                    'message' => 'NISN tidak ditemukan.',
+                    'message' => 'NISN / Username tidak ditemukan.',
                 ];
 
                 continue;
@@ -709,6 +729,30 @@ class AttendanceRecordService extends BaseActionService
         }
 
         if (!$card->siswa) {
+            $guru = User::query()
+                ->where('nomor_kartu', $uid)
+                ->orWhere('nomor_kartu', $card->code)
+                ->first();
+
+            if ($guru) {
+                $now = Carbon::now();
+                return [
+                    'success' => true,
+                    'results' => [[
+                        'success' => true,
+                        'uid' => (string) $card->code,
+                        'nisn' => $guru->username,
+                        'nama' => $guru->name,
+                        'kelas' => $guru->jabatan ?: 'Guru / Staf',
+                        'status' => 'Hadir',
+                        'jamDatang' => $now->format('H:i:s'),
+                        'jamPulang' => null,
+                        'message' => 'Absensi Guru berhasil: ' . $guru->name,
+                        'role' => 'guru',
+                    ]],
+                ];
+            }
+
             $isNewCard = (bool) ($resolvedCard['created'] ?? false);
 
             return [
@@ -717,8 +761,8 @@ class AttendanceRecordService extends BaseActionService
                     'success' => false,
                     'uid' => (string) $card->code,
                     'message' => $isNewCard
-                        ? 'Kartu RFID baru terdeteksi. Tautkan kartu ke siswa terlebih dahulu.'
-                        : 'Kartu RFID belum ditautkan ke siswa.',
+                        ? 'Kartu RFID baru terdeteksi. Tautkan kartu ke siswa atau guru terlebih dahulu.'
+                        : 'Kartu RFID belum ditautkan ke siswa atau guru.',
                     'reason' => $isNewCard ? 'new_card_detected' : 'card_not_linked',
                 ]],
             ];

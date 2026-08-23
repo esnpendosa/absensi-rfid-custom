@@ -70,6 +70,7 @@ Route::middleware('auth')
                 Route::post('/guru/destroy', [DataGuruController::class, 'destroy'])->name('guru.destroy');
                 Route::post('/guru/destroy-bulk', [DataGuruController::class, 'destroyBulk'])->name('guru.destroy-bulk');
                 Route::post('/guru/import', [DataGuruController::class, 'import'])->name('guru.import');
+                Route::post('/guru/lookup-scan', [DataGuruController::class, 'lookupForScan'])->name('guru.lookup-scan');
                 Route::post('/piket', [DataPiketController::class, 'index'])->name('piket.index');
                 Route::post('/piket/store', [DataPiketController::class, 'store'])->name('piket.store');
                 Route::post('/piket/update', [DataPiketController::class, 'update'])->name('piket.update');

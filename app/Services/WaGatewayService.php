@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Konfigurasi;
 use App\Models\Siswa;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
@@ -69,6 +70,11 @@ class WaGatewayService
             return false;
         }
 
+        $target = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
+        if (!in_array($target, ['siswa', 'both'], true)) {
+            return false;
+        }
+
         $baseUrl = trim((string) ($settings['wa_gateway_base_url'] ?? ''));
         if ($baseUrl === '') {
             return false;
@@ -76,7 +82,7 @@ class WaGatewayService
 
         $recipients = $this->resolveRecipients(
             $siswa,
-            (string) ($settings['wa_notif_target'] ?? 'siswa'),
+            'siswa',
             (string) ($settings['wa_gateway_provider'] ?? '')
         );
         if (count($recipients) === 0) {
@@ -97,6 +103,69 @@ class WaGatewayService
 
             $sent = $this->dispatchRequest($settings, $baseUrl, $payload) || $sent;
         }
+
+        return $sent;
+    }
+
+    public function notifyTeacherAttendance(User $teacher, array $context = []): bool
+    {
+        $settings = $this->getSettings();
+        if (!$settings['wa_notif_attendance_enabled']) {
+            Log::info('WA teacher attendance skipped: notification disabled', [
+                'user_id' => $teacher->id,
+                'teacher' => $teacher->name,
+            ]);
+            return false;
+        }
+
+        $target = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
+        if (!in_array($target, ['guru', 'both'], true)) {
+            Log::info('WA teacher attendance skipped: target set to siswa only', [
+                'user_id' => $teacher->id,
+            ]);
+            return false;
+        }
+
+        $baseUrl = trim((string) ($settings['wa_gateway_base_url'] ?? ''));
+        if ($baseUrl === '') {
+            Log::warning('WA teacher attendance skipped: base URL empty');
+            return false;
+        }
+
+        $phone = trim((string) ($teacher->no_hp ?? ''));
+        if ($phone === '') {
+            Log::info('WA teacher attendance skipped: teacher has no phone number', [
+                'user_id' => $teacher->id,
+                'name' => $teacher->name,
+            ]);
+            return false;
+        }
+
+        $recipient = $this->normalizePhone($phone, (string) ($settings['wa_gateway_provider'] ?? ''));
+        if ($recipient === null) {
+            Log::warning('WA teacher attendance skipped: invalid phone number', [
+                'user_id' => $teacher->id,
+                'no_hp' => $phone,
+            ]);
+            return false;
+        }
+
+        $message = $this->buildTeacherAttendanceMessage($settings, $teacher, $context);
+        if (trim($message) === '') {
+            return false;
+        }
+
+        $payload = $this->buildPayload($settings, $recipient, $message);
+        if (count($payload) === 0) {
+            return false;
+        }
+
+        $sent = $this->dispatchRequest($settings, $baseUrl, $payload);
+        Log::info('WA teacher attendance send result', [
+            'user_id' => $teacher->id,
+            'recipient' => $recipient,
+            'sent' => $sent,
+        ]);
 
         return $sent;
     }
@@ -244,7 +313,7 @@ class WaGatewayService
             'wa_notif_attendance_enabled' => '0',
             'wa_notif_izin_sakit_enabled' => '0',
             'wa_notif_izin_sakit_reviewer_enabled' => '0',
-            'wa_notif_target' => 'siswa',
+            'wa_notif_target' => 'both',
             'wa_gateway_provider' => 'SENDERBLAST',
             'wa_gateway_base_url' => '',
             'wa_gateway_authorization' => '',
@@ -445,6 +514,82 @@ class WaGatewayService
             '{status}' => $status,
             '{keterangan}' => $keteranganRaw !== '' ? $keteranganRaw : $status,
         ]);
+
+        return str_replace(array_keys($map), array_values($map), $template);
+    }
+
+    protected function buildTeacherAttendanceMessage(array $settings, User $teacher, array $context): string
+    {
+        $type = strtolower(trim((string) ($context['type'] ?? 'datang')));
+        $keteranganRaw = trim((string) ($context['keterangan'] ?? ''));
+        $keterangan = strtolower($keteranganRaw);
+        $isLate = $keterangan === 'terlambat' || str_contains($keterangan, 'terlambat');
+        $isPulangCepat = $keterangan === 'pulang cepat' || stripos($keterangan, 'cepat') !== false;
+
+        $templateKey = match ($type) {
+            'pulang' => $isPulangCepat ? 'wa_template_pulang_cepat' : 'wa_template_pulang',
+            default => $isLate ? 'wa_template_terlambat' : 'wa_template_hadir',
+        };
+
+        $template = trim((string) ($settings[$templateKey] ?? ''));
+        if ($template === '') {
+            $template = 'Halo {nama}, absensi {jabatan}: {status} pada {tanggal} {jam}.';
+        }
+
+        $tanggalRaw = (string) ($context['tanggal'] ?? Carbon::today()->toDateString());
+        $jamRaw = trim((string) ($context['jam'] ?? ''));
+        $status = trim((string) ($context['status'] ?? ''));
+        if ($type === 'pulang' && ($status === '' || strtolower($status) === 'hadir')) {
+            $status = $isPulangCepat ? 'Pulang Cepat' : 'Pulang';
+        }
+
+        if ($status === '') {
+            if ($keterangan !== '') {
+                $status = ucfirst($keterangan);
+            } elseif ($type === 'pulang') {
+                $status = 'Pulang';
+            } else {
+                $status = 'Hadir';
+            }
+        }
+
+        $tanggal = $tanggalRaw;
+        try {
+            $tanggal = Carbon::parse($tanggalRaw)->format('d-m-Y');
+        } catch (\Throwable $e) {
+            // Pakai nilai original jika gagal parse.
+        }
+        $jam = $jamRaw;
+        if ($jamRaw !== '') {
+            if (preg_match('/^\d{2}:\d{2}$/', $jamRaw) === 1) {
+                $jam = $jamRaw . ':00';
+            } else {
+                try {
+                    $jam = Carbon::parse($jamRaw)->format('H:i:s');
+                } catch (\Throwable $e) {
+                    // Pakai nilai original jika gagal parse.
+                }
+            }
+        }
+
+        $jabatan = $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf');
+        $map = [
+            '{nama}' => $teacher->name,
+            '{nama_siswa}' => $teacher->name,
+            '{nisn}' => $teacher->username,
+            '{nip}' => $teacher->username,
+            '{username}' => $teacher->username,
+            '{kelas}' => $jabatan,
+            '{jabatan}' => $jabatan,
+            '{tanggal}' => $tanggal,
+            '{jam}' => $jam,
+            '{waktu}' => $jam,
+            '{tanggal_jam}' => trim($tanggal . ($jam !== '' ? ' ' . $jam : '')),
+            '{status}' => $status,
+            '{keterangan}' => $keteranganRaw !== '' ? $keteranganRaw : $status,
+            '{website_name}' => $this->resolveWebsiteName(),
+            '{app_name}' => (string) config('app.name', 'Absensindo'),
+        ];
 
         return str_replace(array_keys($map), array_values($map), $template);
     }

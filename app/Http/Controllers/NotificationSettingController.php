@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Kelas;
 use App\Models\Konfigurasi;
 use App\Models\Siswa;
+use App\Models\User;
 use App\Models\TelegramChatLink;
 use App\Services\TelegramBotService;
 use App\Services\WaGatewayService;
@@ -59,7 +60,7 @@ class NotificationSettingController extends Controller
             'izin_sakit_notif_enabled' => ['nullable', 'boolean'],
             'izin_sakit_notif_channel' => ['required', 'in:whatsapp,telegram,both'],
             'wa_notif_izin_sakit_reviewer_enabled' => ['nullable', 'boolean'],
-            'wa_notif_target' => ['required', 'in:siswa'],
+            'wa_notif_target' => ['required', 'in:siswa,guru,both'],
             'wa_gateway_provider' => ['nullable', 'string', 'in:CUSTOM,SENDERBLAST,STANDARD,FONNTE,SIDOBE'],
             'wa_gateway_base_url' => ['nullable', 'url', 'max:255'],
             'wa_gateway_authorization' => ['nullable', 'string', 'max:500'],
@@ -188,7 +189,7 @@ class NotificationSettingController extends Controller
             'wa_notif_attendance_enabled' => $waAttendanceNotificationEnabled ? '1' : '0',
             'wa_notif_izin_sakit_enabled' => $waIzinSakitNotificationEnabled ? '1' : '0',
             'wa_notif_izin_sakit_reviewer_enabled' => $reviewerNotificationEnabled ? '1' : '0',
-            'wa_notif_target' => 'siswa',
+            'wa_notif_target' => in_array(strtolower(trim((string) ($validated['wa_notif_target'] ?? 'both'))), ['siswa', 'guru', 'both'], true) ? strtolower(trim((string) $validated['wa_notif_target'])) : 'both',
             'wa_gateway_provider' => $provider,
             'wa_gateway_base_url' => $baseUrl,
             'wa_gateway_authorization' => $authorizationValue,
@@ -451,7 +452,7 @@ class NotificationSettingController extends Controller
     public function sendNotification(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'target_type' => ['required', Rule::in(['siswa', 'kelas'])],
+            'target_type' => ['required', Rule::in(['siswa', 'kelas', 'semua_siswa', 'guru', 'semua_guru', 'semua'])],
             'siswa_id' => [
                 Rule::requiredIf(fn () => $request->input('target_type') === 'siswa'),
                 'nullable',
@@ -464,6 +465,12 @@ class NotificationSettingController extends Controller
                 'integer',
                 Rule::exists('kelas', 'id'),
             ],
+            'guru_id' => [
+                Rule::requiredIf(fn () => $request->input('target_type') === 'guru'),
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id'),
+            ],
             'message' => ['required', 'string', 'max:2000'],
             'pause_min_sec' => ['nullable', 'integer', 'min:0', 'max:60'],
             'pause_max_sec' => ['nullable', 'integer', 'min:0', 'max:60'],
@@ -472,6 +479,7 @@ class NotificationSettingController extends Controller
         $targetType = (string) ($validated['target_type'] ?? '');
         $siswaId = (int) ($validated['siswa_id'] ?? 0);
         $kelasId = (int) ($validated['kelas_id'] ?? 0);
+        $guruId = (int) ($validated['guru_id'] ?? 0);
         $message = trim((string) ($validated['message'] ?? ''));
         $pauseMinSec = isset($validated['pause_min_sec']) ? (int) $validated['pause_min_sec'] : null;
         $pauseMaxSec = isset($validated['pause_max_sec']) ? (int) $validated['pause_max_sec'] : null;
@@ -487,7 +495,7 @@ class NotificationSettingController extends Controller
         $pauseMinMs = max(0, min($pauseMinMs, 60000));
         $pauseMaxMs = max($pauseMinMs, min($pauseMaxMs, 60000));
 
-        $recipients = $this->resolveBroadcastRecipients($targetType, $siswaId, $kelasId);
+        $recipients = $this->resolveBroadcastRecipients($targetType, $siswaId, $kelasId, $guruId);
         if (count($recipients) === 0) {
             return response()->json([
                 'success' => false,
@@ -497,14 +505,24 @@ class NotificationSettingController extends Controller
 
         $total = count($recipients);
         $senderName = trim((string) ($request->user()?->name ?? $request->user()?->username ?? ''));
-        $targetLabel = $this->resolveBroadcastTargetLabel($targetType, $siswaId, $kelasId, $recipients);
+        $targetLabel = $this->resolveBroadcastTargetLabel($targetType, $siswaId, $kelasId, $guruId, $recipients);
         $websiteName = $this->resolveWebsiteName();
+
+        $targetTypeLabels = [
+            'siswa' => 'Per Siswa',
+            'kelas' => 'Per Kelas',
+            'semua_siswa' => 'Semua Siswa',
+            'guru' => 'Per Guru / Staf',
+            'semua_guru' => 'Semua Guru & Staf',
+            'semua' => 'Semua (Siswa & Guru)',
+        ];
+
         $meta = [
             'target_type' => $targetType,
-            'target_id' => $targetType === 'siswa' ? $siswaId : $kelasId,
+            'target_id' => $targetType === 'siswa' ? $siswaId : ($targetType === 'kelas' ? $kelasId : ($targetType === 'guru' ? $guruId : 0)),
             'queued_by_user_id' => (int) ($request->user()?->id ?? 0),
             'queued_by_name' => $senderName !== '' ? $senderName : null,
-            'target_type_label' => $targetType === 'kelas' ? 'Per Kelas' : 'Per Siswa',
+            'target_type_label' => $targetTypeLabels[$targetType] ?? $targetType,
             'target_label' => $targetLabel,
             'website_name' => $websiteName,
             'app_name' => (string) config('app.name', 'Absensindo'),
@@ -750,10 +768,10 @@ class NotificationSettingController extends Controller
             $settings['wa_gateway_parameter_3'] = '';
             $settings['wa_gateway_value_3'] = '';
             $settings['wa_gateway_parameter_4'] = '';
-            $settings['wa_gateway_value_4'] = '';
             $settings['wa_gateway_header_key'] = 'X-Secret-Key';
         }
-        $settings['wa_notif_target'] = 'siswa';
+        $savedTarget = strtolower(trim((string) ($rows['wa_notif_target'] ?? 'both')));
+        $settings['wa_notif_target'] = in_array($savedTarget, ['siswa', 'guru', 'both'], true) ? $savedTarget : 'both';
         $settings['wa_notif_attendance_enabled'] = (string) ($settings['wa_notif_attendance_enabled'] ?? '0') === '1';
         $settings['wa_notif_izin_sakit_enabled'] = (string) ($settings['wa_notif_izin_sakit_enabled'] ?? '0') === '1';
         $settings['wa_notif_izin_sakit_reviewer_enabled'] = (string) ($settings['wa_notif_izin_sakit_reviewer_enabled'] ?? '0') === '1';
@@ -868,9 +886,30 @@ class NotificationSettingController extends Controller
             ->values()
             ->all();
 
+        $guru = User::query()
+            ->whereNotNull('no_hp')
+            ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+            ->orderBy('name')
+            ->get(['id', 'name', 'username', 'jabatan', 'kelas', 'no_hp'])
+            ->map(function (User $row): array {
+                $jabatan = (string) ($row->jabatan ?: ($row->kelas ?: 'Guru'));
+                return [
+                    'id' => (int) $row->id,
+                    'name' => (string) $row->name,
+                    'username' => (string) ($row->username ?? ''),
+                    'jabatan' => $jabatan,
+                    'label' => $row->name . ' (' . $jabatan . ' - ' . $row->username . ')',
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
             'kelas' => $kelas,
             'siswa' => $siswa,
+            'guru' => $guru,
+            'total_siswa_wa' => count($siswa),
+            'total_guru_wa' => count($guru),
         ];
     }
 
@@ -878,22 +917,10 @@ class NotificationSettingController extends Controller
      * @return array<int, array{
      *     phone:string,
      *     label:string,
-     *     context:array{
-     *         nama:string,
-     *         nisn:string,
-     *         kelas:string,
-     *         no_hp:string,
-     *         jenis_kelamin:string,
-     *         tanggal_lahir:string,
-     *         agama:string,
-     *         nama_ayah:string,
-     *         nama_ibu:string,
-     *         nama_orang_tua:string,
-     *         alamat:string
-     *     }
+     *     context:array<string, string>
      * }>
      */
-    protected function resolveBroadcastRecipients(string $targetType, int $siswaId, int $kelasId): array
+    protected function resolveBroadcastRecipients(string $targetType, int $siswaId, int $kelasId, int $guruId = 0): array
     {
         if ($targetType === 'siswa') {
             if ($siswaId <= 0) {
@@ -928,6 +955,142 @@ class NotificationSettingController extends Controller
                 'label' => $this->formatSiswaLabel($siswa),
                 'context' => $this->buildRecipientContext($siswa, $rawPhone),
             ]];
+        }
+
+        if ($targetType === 'guru') {
+            if ($guruId <= 0) {
+                return [];
+            }
+
+            $guru = User::query()
+                ->whereKey($guruId)
+                ->whereNotNull('no_hp')
+                ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+                ->first();
+
+            if (!$guru) {
+                return [];
+            }
+
+            $rawPhone = trim((string) ($guru->no_hp ?? ''));
+            return [[
+                'phone' => $rawPhone,
+                'label' => $guru->name . ' (' . ($guru->jabatan ?: 'Guru') . ')',
+                'context' => $this->buildTeacherRecipientContext($guru, $rawPhone),
+            ]];
+        }
+
+        if ($targetType === 'semua_guru') {
+            $rows = User::query()
+                ->whereNotNull('no_hp')
+                ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+                ->orderBy('name')
+                ->get();
+
+            $recipients = [];
+            $seenPhones = [];
+            foreach ($rows as $row) {
+                $rawPhone = trim((string) ($row->no_hp ?? ''));
+                if ($rawPhone === '') continue;
+
+                $phoneKey = preg_replace('/\D+/', '', $rawPhone) ?: $rawPhone;
+                if (isset($seenPhones[$phoneKey])) continue;
+                $seenPhones[$phoneKey] = true;
+
+                $recipients[] = [
+                    'phone' => $rawPhone,
+                    'label' => $row->name . ' (' . ($row->jabatan ?: 'Guru') . ')',
+                    'context' => $this->buildTeacherRecipientContext($row, $rawPhone),
+                ];
+            }
+
+            return $recipients;
+        }
+
+        if ($targetType === 'semua_siswa') {
+            $rows = Siswa::query()
+                ->whereNotNull('no_hp')
+                ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+                ->orderBy('nama')
+                ->get([
+                    'id', 'nama', 'nisn', 'kelas', 'no_hp',
+                    'jenis_kelamin', 'tanggal_lahir', 'agama',
+                    'nama_ayah', 'nama_ibu', 'alamat',
+                ]);
+
+            $recipients = [];
+            $seenPhones = [];
+            foreach ($rows as $row) {
+                $rawPhone = trim((string) ($row->no_hp ?? ''));
+                if ($rawPhone === '') continue;
+
+                $phoneKey = preg_replace('/\D+/', '', $rawPhone) ?: $rawPhone;
+                if (isset($seenPhones[$phoneKey])) continue;
+                $seenPhones[$phoneKey] = true;
+
+                $recipients[] = [
+                    'phone' => $rawPhone,
+                    'label' => $this->formatSiswaLabel($row),
+                    'context' => $this->buildRecipientContext($row, $rawPhone),
+                ];
+            }
+
+            return $recipients;
+        }
+
+        if ($targetType === 'semua') {
+            $recipients = [];
+            $seenPhones = [];
+
+            // 1. Siswa
+            $siswaRows = Siswa::query()
+                ->whereNotNull('no_hp')
+                ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+                ->orderBy('nama')
+                ->get([
+                    'id', 'nama', 'nisn', 'kelas', 'no_hp',
+                    'jenis_kelamin', 'tanggal_lahir', 'agama',
+                    'nama_ayah', 'nama_ibu', 'alamat',
+                ]);
+
+            foreach ($siswaRows as $row) {
+                $rawPhone = trim((string) ($row->no_hp ?? ''));
+                if ($rawPhone === '') continue;
+
+                $phoneKey = preg_replace('/\D+/', '', $rawPhone) ?: $rawPhone;
+                if (isset($seenPhones[$phoneKey])) continue;
+                $seenPhones[$phoneKey] = true;
+
+                $recipients[] = [
+                    'phone' => $rawPhone,
+                    'label' => $this->formatSiswaLabel($row),
+                    'context' => $this->buildRecipientContext($row, $rawPhone),
+                ];
+            }
+
+            // 2. Guru
+            $guruRows = User::query()
+                ->whereNotNull('no_hp')
+                ->whereRaw("TRIM(COALESCE(no_hp, '')) <> ''")
+                ->orderBy('name')
+                ->get();
+
+            foreach ($guruRows as $row) {
+                $rawPhone = trim((string) ($row->no_hp ?? ''));
+                if ($rawPhone === '') continue;
+
+                $phoneKey = preg_replace('/\D+/', '', $rawPhone) ?: $rawPhone;
+                if (isset($seenPhones[$phoneKey])) continue;
+                $seenPhones[$phoneKey] = true;
+
+                $recipients[] = [
+                    'phone' => $rawPhone,
+                    'label' => $row->name . ' (' . ($row->jabatan ?: 'Guru') . ')',
+                    'context' => $this->buildTeacherRecipientContext($row, $rawPhone),
+                ];
+            }
+
+            return $recipients;
         }
 
         if ($targetType !== 'kelas' || $kelasId <= 0) {
@@ -985,19 +1148,7 @@ class NotificationSettingController extends Controller
     }
 
     /**
-     * @return array{
-     *     nama:string,
-     *     nisn:string,
-     *     kelas:string,
-     *     no_hp:string,
-     *     jenis_kelamin:string,
-     *     tanggal_lahir:string,
-     *     agama:string,
-     *     nama_ayah:string,
-     *     nama_ibu:string,
-     *     nama_orang_tua:string,
-     *     alamat:string
-     * }
+     * @return array<string, string>
      */
     protected function buildRecipientContext(Siswa $siswa, string $rawPhone): array
     {
@@ -1017,10 +1168,18 @@ class NotificationSettingController extends Controller
             $tanggalLahir = '';
         }
 
+        $nama = trim((string) ($siswa->nama ?? ''));
+        $nisn = trim((string) ($siswa->nisn ?? ''));
+        $kelas = trim((string) ($siswa->kelas ?? ''));
+
         return [
-            'nama' => trim((string) ($siswa->nama ?? '')),
-            'nisn' => trim((string) ($siswa->nisn ?? '')),
-            'kelas' => trim((string) ($siswa->kelas ?? '')),
+            'nama' => $nama,
+            'nama_siswa' => $nama,
+            'nisn' => $nisn,
+            'nip' => $nisn,
+            'username' => $nisn,
+            'kelas' => $kelas,
+            'jabatan' => $kelas !== '' ? 'Kelas ' . $kelas : 'Siswa',
             'no_hp' => trim((string) $rawPhone),
             'jenis_kelamin' => trim((string) ($siswa->jenis_kelamin ?? '')),
             'tanggal_lahir' => $tanggalLahir,
@@ -1029,19 +1188,81 @@ class NotificationSettingController extends Controller
             'nama_ibu' => $namaIbu,
             'nama_orang_tua' => $namaOrangTua,
             'alamat' => trim((string) ($siswa->alamat ?? '')),
+            'siswa_label' => $this->formatSiswaLabel($siswa),
+            'guru_label' => $nama,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function buildTeacherRecipientContext(User $teacher, string $rawPhone): array
+    {
+        $jabatan = trim((string) ($teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf')));
+        $tanggalLahir = '';
+        try {
+            if ($teacher->tanggal_lahir instanceof \DateTimeInterface) {
+                $tanggalLahir = $teacher->tanggal_lahir->format('d-m-Y');
+            } elseif (trim((string) ($teacher->tanggal_lahir ?? '')) !== '') {
+                $tanggalLahir = Carbon::parse((string) $teacher->tanggal_lahir)->format('d-m-Y');
+            }
+        } catch (\Throwable $e) {
+            $tanggalLahir = '';
+        }
+
+        $name = trim((string) ($teacher->name ?? ''));
+        $username = trim((string) ($teacher->username ?? ''));
+
+        return [
+            'nama' => $name,
+            'nama_siswa' => $name,
+            'nisn' => $username,
+            'nip' => $username,
+            'username' => $username,
+            'kelas' => $jabatan,
+            'jabatan' => $jabatan,
+            'no_hp' => trim((string) $rawPhone),
+            'jenis_kelamin' => trim((string) ($teacher->jenis_kelamin ?? '')),
+            'tanggal_lahir' => $tanggalLahir,
+            'agama' => trim((string) ($teacher->agama ?? '')),
+            'nama_ayah' => '-',
+            'nama_ibu' => '-',
+            'nama_orang_tua' => '-',
+            'alamat' => trim((string) ($teacher->alamat ?? '')),
+            'guru_label' => $name . ' (' . $jabatan . ')',
+            'siswa_label' => $name . ' (' . $jabatan . ')',
         ];
     }
 
     /**
      * @param  array<int, array{
      *     label?:string,
-     *     context?:array{nama?:string,kelas?:string}
+     *     context?:array<string, string>
      * }>  $recipients
      */
-    protected function resolveBroadcastTargetLabel(string $targetType, int $siswaId, int $kelasId, array $recipients): string
+    protected function resolveBroadcastTargetLabel(string $targetType, int $siswaId, int $kelasId, int $guruId, array $recipients): string
     {
         if ($targetType === 'kelas') {
             return trim((string) (Kelas::query()->whereKey($kelasId)->value('nama') ?? ''));
+        }
+
+        if ($targetType === 'semua_siswa') {
+            return 'Semua Siswa (' . count($recipients) . ' penerima)';
+        }
+
+        if ($targetType === 'semua_guru') {
+            return 'Semua Guru & Staf (' . count($recipients) . ' penerima)';
+        }
+
+        if ($targetType === 'semua') {
+            return 'Semua Siswa & Guru (' . count($recipients) . ' penerima)';
+        }
+
+        if ($targetType === 'guru' && $guruId > 0) {
+            $name = trim((string) (User::query()->whereKey($guruId)->value('name') ?? ''));
+            if ($name !== '') {
+                return $name;
+            }
         }
 
         if ($siswaId > 0) {
@@ -1076,19 +1297,7 @@ class NotificationSettingController extends Controller
     /**
      * @param  array{
      *     label?:string,
-     *     context?:array{
-     *         nama?:string,
-     *         nisn?:string,
-     *         kelas?:string,
-     *         no_hp?:string,
-     *         jenis_kelamin?:string,
-     *         tanggal_lahir?:string,
-     *         agama?:string,
-     *         nama_ayah?:string,
-     *         nama_ibu?:string,
-     *         nama_orang_tua?:string,
-     *         alamat?:string
-     *     }
+     *     context?:array<string, string>
      * }  $recipient
      * @return array<string, string>
      */
@@ -1097,8 +1306,11 @@ class NotificationSettingController extends Controller
         $context = is_array($recipient['context'] ?? null) ? $recipient['context'] : [];
 
         $nama = trim((string) ($context['nama'] ?? ''));
-        $nisn = trim((string) ($context['nisn'] ?? ''));
-        $kelas = trim((string) ($context['kelas'] ?? ''));
+        $nisn = trim((string) ($context['nisn'] ?? $context['nip'] ?? $context['username'] ?? ''));
+        $nip = trim((string) ($context['nip'] ?? $context['nisn'] ?? $context['username'] ?? ''));
+        $username = trim((string) ($context['username'] ?? $context['nip'] ?? $context['nisn'] ?? ''));
+        $kelas = trim((string) ($context['kelas'] ?? $context['jabatan'] ?? ''));
+        $jabatan = trim((string) ($context['jabatan'] ?? $context['kelas'] ?? ''));
         $noHp = trim((string) ($context['no_hp'] ?? $recipient['phone'] ?? ''));
         $label = trim((string) ($recipient['label'] ?? ''));
         $jenisKelamin = trim((string) ($context['jenis_kelamin'] ?? ''));
@@ -1111,10 +1323,15 @@ class NotificationSettingController extends Controller
 
         return [
             'nama' => $nama,
+            'nama_siswa' => $nama,
             'nisn' => $nisn,
+            'nip' => $nip,
+            'username' => $username,
             'kelas' => $kelas,
+            'jabatan' => $jabatan,
             'no_hp' => $noHp,
             'siswa_label' => $label,
+            'guru_label' => $label,
             'jenis_kelamin' => $jenisKelamin,
             'tanggal_lahir' => $tanggalLahir,
             'agama' => $agama,

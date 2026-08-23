@@ -1726,18 +1726,33 @@ function loadQRCodeSiswa() {
 
         Swal.fire({
             title: 'Menunggu Scan Kartu',
-            html: 'Tempelkan kartu ke mesin absensi untuk membaca nomor kartu.',
+            html: `
+                <div style="padding: 12px 0 6px;">
+                    <div style="font-size: 2.2rem; line-height: 1; margin-bottom: 12px; color: #2563eb;">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <p style="font-size: 13px; color: #334155; font-weight: 600; margin-bottom: 4px;">Tempelkan kartu ke mesin absensi</p>
+                    <p style="font-size: 11px; color: #64748b;">Nomor kartu akan terisi otomatis saat kartu di-tap.</p>
+                </div>
+            `,
             allowOutsideClick: false,
-            allowEscapeKey: false,
+            allowEscapeKey: true,
             showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Batal Scan',
+            cancelButtonColor: '#64748b',
             showCloseButton: true,
             closeButtonHtml: '&times;',
             customClass: {
                 popup: 'swal-scan-card-popup',
                 closeButton: 'swal-scan-card-close',
+                cancelButton: 'px-4 py-2 rounded-xl text-xs font-bold'
             },
             didOpen: () => {
-                Swal.showLoading();
+                const actions = Swal.getActions();
+                if (actions) {
+                    actions.style.display = 'flex';
+                }
             },
             didClose: () => {
                 if (!siswaCardScanLoadingVisible) {
@@ -1753,6 +1768,10 @@ function loadQRCodeSiswa() {
                 resetSiswaCardScanRuntime();
                 setSiswaCardStatus('Pemindaian dibatalkan.', 'muted');
             },
+        }).then((result) => {
+            if (result.isDismissed) {
+                stopSiswaCardScan();
+            }
         });
     }
 

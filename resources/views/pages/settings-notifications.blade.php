@@ -153,9 +153,11 @@
                             <div class="grid grid-cols-1 gap-4">
                                 <div class="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
                                     <label class="block mb-1 text-xs font-bold text-gray-500 uppercase tracking-wide">Target Penerima Absensi</label>
-                                    <p class="text-[11px] text-gray-500 mb-2">Saat ini notifikasi absensi WA dikirim ke nomor siswa yang tersimpan.</p>
-                                    <select name="wa_notif_target" class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5">
-                                        <option value="siswa" selected>Siswa</option>
+                                    <p class="text-[11px] text-gray-500 mb-2">Pilih target penerima notifikasi otomatis absensi WhatsApp (Siswa, Guru & Staf, atau Keduanya).</p>
+                                    <select name="wa_notif_target" class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-semibold">
+                                        <option value="both" {{ ($settings['wa_notif_target'] ?? 'both') === 'both' ? 'selected' : '' }}>Siswa dan Guru & Staf (Keduanya)</option>
+                                        <option value="siswa" {{ ($settings['wa_notif_target'] ?? 'both') === 'siswa' ? 'selected' : '' }}>Hanya Siswa</option>
+                                        <option value="guru" {{ ($settings['wa_notif_target'] ?? 'both') === 'guru' ? 'selected' : '' }}>Hanya Guru & Staf</option>
                                     </select>
                                 </div>
                             </div>

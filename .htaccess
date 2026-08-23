@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # 1. Route storage requests directly to Laravel's index.php to bypass physical directory blocking (403 Forbidden)
+    RewriteRule ^storage/(.*)$ public/index.php [L]
+
+    # 2. Redirect sisanya ke folder public
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

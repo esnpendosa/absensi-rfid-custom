@@ -18,6 +18,9 @@
             <button type="button" id="refreshAlumniBtn" class="bg-white text-gray-600 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition" title="Perbarui Data">
                 <i class="fas fa-sync-alt"></i>
             </button>
+            <button type="button" onclick="openModalLaporanAlumni()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5" title="Cetak / Export Laporan">
+                <i class="fas fa-print"></i> Laporan
+            </button>
             <button type="button" onclick="openModalTambahAlumni()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                 <i class="fas fa-plus-circle"></i> Tambah Alumni
             </button>
@@ -179,6 +182,62 @@
     </div>
 </div>
 
+<!-- MODAL LAPORAN ALUMNI & TRACER STUDY -->
+<div id="modalLaporanAlumni" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="font-bold text-sm text-gray-800 flex items-center gap-2">
+                <i class="fas fa-file-invoice text-indigo-600"></i> Laporan Alumni & Tracer Study
+            </h3>
+            <button onclick="closeModalLaporanAlumni()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Tahun Lulus</label>
+                <select id="laporan_tahun" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-700">
+                    <option value="">Semua Tahun Lulus</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Kelas Terakhir</label>
+                <select id="laporan_kelas" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-700">
+                    <option value="">Semua Kelas</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Status Tracer Study</label>
+                <select id="laporan_status" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-700">
+                    <option value="">Semua Status</option>
+                    <option value="Bekerja">Bekerja</option>
+                    <option value="Kuliah">Kuliah</option>
+                    <option value="Wirausaha">Wirausaha</option>
+                    <option value="Mencari Kerja">Mencari Kerja</option>
+                    <option value="Belum Diisi">Belum Diisi / Belum Mengisi</option>
+                </select>
+            </div>
+
+            <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-800 space-y-1">
+                <p><strong>Tips:</strong> Laporan akan menyertakan data lengkap, ringkasan persentase penelusuran karir, dan format siap cetak.</p>
+            </div>
+
+            <div class="mt-6 pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-2">
+                <button type="button" onclick="closeModalLaporanAlumni()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition order-3 sm:order-1">
+                    Batal
+                </button>
+                <button type="button" onclick="exportCsvLaporanAlumni()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-sm flex items-center justify-center gap-1.5 order-2">
+                    <i class="fas fa-file-excel"></i> Export Excel/CSV
+                </button>
+                <button type="button" onclick="cetakLaporanAlumniPdf()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition shadow-sm flex items-center justify-center gap-1.5 order-1 sm:order-3">
+                    <i class="fas fa-print"></i> Cetak / PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function openModalTambahAlumni() {
     document.getElementById('formTambahAlumni').reset();
@@ -235,9 +294,84 @@ async function submitFormTambahAlumni(e) {
         btn.innerHTML = `<i class="fas fa-check"></i> Simpan Alumni`;
     }
 }
+
+function openModalLaporanAlumni() {
+    // Sinkronisasi opsi kelas & tahun dari dropdown tabel utama
+    const kelasSelect = document.getElementById('filterKelasAlumni');
+    const tahunSelect = document.getElementById('filterTahunAlumni');
+    const tracerSelect = document.getElementById('filterTracerAlumni');
+
+    const lapKelas = document.getElementById('laporan_kelas');
+    const lapTahun = document.getElementById('laporan_tahun');
+    const lapStatus = document.getElementById('laporan_status');
+
+    if (kelasSelect && lapKelas) {
+        lapKelas.innerHTML = '<option value="">Semua Kelas</option>';
+        Array.from(kelasSelect.options).forEach(opt => {
+            if (opt.value) {
+                const newOpt = document.createElement('option');
+                newOpt.value = opt.value;
+                newOpt.textContent = opt.textContent;
+                if (opt.value === kelasSelect.value) newOpt.selected = true;
+                lapKelas.appendChild(newOpt);
+            }
+        });
+    }
+
+    if (tahunSelect && lapTahun) {
+        lapTahun.innerHTML = '<option value="">Semua Tahun Lulus</option>';
+        Array.from(tahunSelect.options).forEach(opt => {
+            if (opt.value) {
+                const newOpt = document.createElement('option');
+                newOpt.value = opt.value;
+                newOpt.textContent = opt.textContent;
+                if (opt.value === tahunSelect.value) newOpt.selected = true;
+                lapTahun.appendChild(newOpt);
+            }
+        });
+    }
+
+    if (tracerSelect && lapStatus && tracerSelect.value) {
+        lapStatus.value = tracerSelect.value;
+    }
+
+    document.getElementById('modalLaporanAlumni').classList.remove('hidden');
+}
+
+function closeModalLaporanAlumni() {
+    document.getElementById('modalLaporanAlumni').classList.add('hidden');
+}
+
+function buildLaporanQueryString() {
+    const tahun = document.getElementById('laporan_tahun')?.value || '';
+    const kelas = document.getElementById('laporan_kelas')?.value || '';
+    const status = document.getElementById('laporan_status')?.value || '';
+    const search = document.getElementById('searchAlumniInput')?.value || '';
+
+    const params = new URLSearchParams();
+    if (tahun) params.append('tahun_lulus', tahun);
+    if (kelas) params.append('kelas', kelas);
+    if (status) params.append('status_alumni', status);
+    if (search) params.append('search', search);
+
+    return params.toString();
+}
+
+function cetakLaporanAlumniPdf() {
+    const qs = buildLaporanQueryString();
+    const url = `{{ route('data-alumni.laporan.cetak') }}${qs ? '?' + qs : ''}`;
+    window.open(url, '_blank');
+}
+
+function exportCsvLaporanAlumni() {
+    const qs = buildLaporanQueryString();
+    const url = `{{ route('data-alumni.laporan.export') }}${qs ? '?' + qs : ''}`;
+    window.location.href = url;
+}
 </script>
 @endsection
 
 @push('scripts')
 @include('partials.page-script', ['name' => 'data-alumni'])
 @endpush
+

@@ -30,6 +30,9 @@ class User extends Authenticatable
         'agama',
         'no_hp',
         'alamat',
+        'status',
+        'jabatan',
+        'nomor_kartu',
         'avatar_path',
         'password',
     ];

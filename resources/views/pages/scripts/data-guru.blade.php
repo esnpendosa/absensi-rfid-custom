@@ -155,7 +155,7 @@
     const tableState = {
                 siswa: { fullData: [], filtered: [], limit: 10, page: 1, search: '', classFilter: '' },
                 // UPDATE BAGIAN INI: Tambahkan classFilter: ''
-                guru: { fullData: [], filtered: [], limit: 10, page: 1, search: '', classFilter: '' },
+                guru: { fullData: [], filtered: [], limit: 10, page: 1, search: '', classFilter: '', statusFilter: '' },
                 
                 libur: { fullData: [], filtered: [], limit: 10, page: 1, search: '' },
                 rekap: { fullData: [], filtered: [], limit: 10, page: 1, search: '' },
@@ -653,7 +653,7 @@ function patchedEscapeHtml(value) {
     }
 
     function getGuruTableColumnCount() {
-        return staffSelectionMode ? 8 : 7;
+        return staffSelectionMode ? 10 : 9;
     }
 
     function getCurrentPagedStaffRows() {
@@ -787,6 +787,29 @@ function patchedEscapeHtml(value) {
             }
 
             updateStaffSelectionUI();
+        });
+
+        tbody.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-guru-action]');
+            if (!button || !tbody.contains(button)) {
+                return;
+            }
+
+            const action = button.getAttribute('data-guru-action');
+            const username = button.getAttribute('data-guru-username');
+            const guru = (tableState.guru.fullData || []).find((g) => normalizeStaffUsername(g?.username) === normalizeStaffUsername(username));
+            if (!guru) {
+                showAlert('error', `Data ${STAFF_LABEL} tidak ditemukan.`);
+                return;
+            }
+
+            if (action === 'view') {
+                viewGuru(guru);
+            } else if (action === 'edit') {
+                editGuru(guru);
+            } else if (action === 'delete') {
+                deleteGuruConfirm(guru.username);
+            }
         });
     }
 
@@ -1590,9 +1613,12 @@ function loadQRCodeSiswa() {
         form.setAttribute('onsubmit', `saveGuru(event, ${isEdit})`);
 
         setFormFieldValue(form, 'username', isEdit ? guru.username : '');
+        setFormFieldValue(form, 'nomorKartu', isEdit ? (guru.nomorKartu || guru.nomor_kartu || '') : '');
         setFormFieldValue(form, 'nama', isEdit ? (guru.name || guru.nama || '') : '');
+        setFormFieldValue(form, 'jabatan', isEdit ? (guru.jabatan || '') : '');
         setFormFieldValue(form, 'email', isEdit ? guru.email : '');
         setFormFieldValue(form, 'kelas', isEdit ? guru.kelas : '');
+        setFormFieldValue(form, 'status', isEdit ? (guru.status || 'Aktif') : 'Aktif');
         setFormFieldValue(form, 'noHp', isEdit ? (guru.noHp || guru.no_hp || '') : '');
         setFormFieldValue(form, 'jenisKelamin', isEdit ? (guru.jenisKelamin || guru.jenis_kelamin || '') : '');
         setFormFieldValue(form, 'tanggalLahir', isEdit ? (guru.tanggalLahir || guru.tanggal_lahir || '') : '');
@@ -1627,10 +1653,37 @@ function loadQRCodeSiswa() {
         openGuruModal(null);
     }
 
+    function findGuruByUsername(username) {
+        const target = normalizeStaffUsername(username);
+        if (!target) return null;
+        return (tableState.guru.fullData || []).find((g) => normalizeStaffUsername(g?.username) === target) || null;
+    }
+
     function editGuru(guruData) {
         openGuruModal(guruData || null);
     }
-    function viewGuru(guruData) { showModal(createViewGuruModal(guruData)); }
+
+    function editGuruByUsername(username) {
+        const guru = findGuruByUsername(username);
+        if (guru) {
+            editGuru(guru);
+        } else {
+            showAlert('error', 'Data guru tidak ditemukan.');
+        }
+    }
+
+    function viewGuru(guruData) {
+        showModal(createViewGuruModal(guruData));
+    }
+
+    function viewGuruByUsername(username) {
+        const guru = findGuruByUsername(username);
+        if (guru) {
+            viewGuru(guru);
+        } else {
+            showAlert('error', 'Data guru tidak ditemukan.');
+        }
+    }
 
     function createSiswaModal(s = null) {
         const isEdit = s !== null;
@@ -1836,8 +1889,54 @@ function loadQRCodeSiswa() {
                             <input name="username" value="${guru?.username || ''}" placeholder="Username" required class="${inputClass}">
                         </div>
                         <div>
+                            <label class="${labelClass}">Nomor Kartu</label>
+                            <div class="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    name="nomorKartu"
+                                    id="inputNomorKartuGuru"
+                                    value="${guru?.nomorKartu || ''}"
+                                    class="${inputClass} font-mono uppercase"
+                                    placeholder="Contoh: 04AABBCC"
+                                >
+                                <button
+                                    type="button"
+                                    onclick="startGuruCardTapScan()"
+                                    class="inline-flex items-center justify-center gap-2 h-[42px] px-3 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-xs hover:bg-indigo-100 transition shrink-0"
+                                    title="Scan / Tap Kartu RFID"
+                                >
+                                    <i class="fas fa-id-card"></i> Scan
+                                </button>
+                            </div>
+                        </div>
+                        <div>
                             <label class="${labelClass}">Nama ${STAFF_LABEL_TITLE}</label>
                             <input name="nama" value="${guru?.name || ''}" placeholder="Nama lengkap ${STAFF_LABEL}" required class="${inputClass}">
+                        </div>
+                        <div>
+                            <label class="${labelClass}">Jabatan / Tugas</label>
+                            <input 
+                                name="jabatan" 
+                                list="jabatanListGuru" 
+                                value="${guru?.jabatan || ''}" 
+                                placeholder="Contoh: Kepala Sekolah, Waka, Kaprogli, Guru Mapel..." 
+                                class="${inputClass}"
+                            >
+                            <datalist id="jabatanListGuru">
+                                <option value="Kepala Sekolah">
+                                <option value="Wakil Kepala Sekolah">
+                                <option value="Waka Kurikulum">
+                                <option value="Waka Kesiswaan">
+                                <option value="Waka Humas & Hubin">
+                                <option value="Waka Sarana & Prasarana">
+                                <option value="Kaprogli (Ketua Program Keahlian)">
+                                <option value="Kepala Lab / Bengkel">
+                                <option value="Koordinator BK">
+                                <option value="Guru Mata Pelajaran">
+                                <option value="Wali Kelas">
+                                <option value="Pembina OSIS">
+                                <option value="Staf Tata Usaha">
+                            </datalist>
                         </div>
                         <div>
                             <label class="${labelClass}">Email</label>
@@ -1863,6 +1962,18 @@ function loadQRCodeSiswa() {
                         <div>
                             <label class="${labelClass}">No HP</label>
                             <input name="noHp" value="${guru?.noHp || ''}" placeholder="08xxxxxxxxxx" class="${inputClass}">
+                        </div>
+                        <div>
+                            <label class="${labelClass}">Status Kepegawaian</label>
+                            <select name="status" class="${inputClass}">
+                                <option value="Aktif" ${(guru?.status || 'Aktif') === 'Aktif' ? 'selected' : ''}>Aktif</option>
+                                <option value="Nonaktif" ${guru?.status === 'Nonaktif' ? 'selected' : ''}>Nonaktif</option>
+                                <option value="Cuti" ${guru?.status === 'Cuti' ? 'selected' : ''}>Cuti</option>
+                                <option value="Guru Tetap (GTY)" ${guru?.status === 'Guru Tetap (GTY)' ? 'selected' : ''}>Guru Tetap (GTY)</option>
+                                <option value="Guru Honorer (GTT)" ${guru?.status === 'Guru Honorer (GTT)' ? 'selected' : ''}>Guru Honorer (GTT)</option>
+                                <option value="PNS" ${guru?.status === 'PNS' ? 'selected' : ''}>PNS</option>
+                                <option value="PPPK" ${guru?.status === 'PPPK' ? 'selected' : ''}>PPPK</option>
+                            </select>
                         </div>
                     </div>
 
@@ -1984,10 +2095,10 @@ function loadQRCodeSiswa() {
             </div>
 
             <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
-                <button onclick="editGuru(${JSON.stringify(g).replace(/"/g, '&quot;')})" class="px-5 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-bold text-sm hover:bg-amber-200 transition flex items-center gap-2">
+                <button type="button" data-guru-modal-edit="${patchedEscapeHtml(g?.username || '')}" onclick="editGuruByUsername(this.dataset.guruModalEdit); closeModal();" class="px-5 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-bold text-sm hover:bg-amber-200 transition flex items-center gap-2">
                     <i class="fas fa-edit"></i> Edit Data
                 </button>
-                <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-300 transition">
+                <button type="button" onclick="closeModal()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-300 transition">
                     Tutup
                 </button>
             </div>
@@ -2012,10 +2123,13 @@ function saveGuru(e, isEdit) {
     // 3. Ambil Data Form
     const fd = new FormData(form);
     const username = String(fd.get('username') || '').trim();
+    const nomorKartu = String(fd.get('nomorKartu') || '').trim();
     const password = String(fd.get('password') || '').trim();
     const nama = String(fd.get('nama') || '').trim();
+    const jabatan = String(fd.get('jabatan') || '').trim();
     const email = String(fd.get('email') || '').trim();
     const kelas = fd.get('kelas');
+    const status = String(fd.get('status') || 'Aktif').trim();
     const jenisKelamin = String(fd.get('jenisKelamin') || '').trim();
     const tanggalLahir = String(fd.get('tanggalLahir') || '').trim();
     const agama = String(fd.get('agama') || '').trim();
@@ -2082,9 +2196,9 @@ function saveGuru(e, isEdit) {
         .withFailureHandler(onFailure);
     if (isEdit) {
         const oldUsername = fd.get('oldUsername');
-        run[STAFF_METHODS.update](token, oldUsername, username, password, kelas, nama, email, jenisKelamin, tanggalLahir, agama, noHp, alamat); // <-- Token dikirim
+        run[STAFF_METHODS.update](token, oldUsername, username, password, kelas, nama, email, jenisKelamin, tanggalLahir, agama, noHp, alamat, status, nomorKartu, jabatan);
     } else {
-        run[STAFF_METHODS.add](token, username, password, kelas, nama, email, jenisKelamin, tanggalLahir, agama, noHp, alamat); // <-- Token dikirim
+        run[STAFF_METHODS.add](token, username, password, kelas, nama, email, jenisKelamin, tanggalLahir, agama, noHp, alamat, status, nomorKartu, jabatan);
     }
 }
     
@@ -3657,16 +3771,30 @@ function handleArchiveAndReset() {
                 <td class="p-3 text-center text-gray-500 text-xs">${startIdx + i + 1}</td>
                 <td class="p-3 text-sm font-bold text-gray-800">${guru.username || '-'}</td>
                 <td class="p-3 text-sm text-gray-800">${guru.name || '-'}</td>
+                <td class="p-3 text-sm text-gray-700">
+                    ${guru.jabatan ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">${patchedEscapeHtml(guru.jabatan)}</span>` : '<span class="text-gray-400 text-xs">-</span>'}
+                </td>
                 <td class="p-3 text-sm text-gray-600 hidden lg:table-cell">${guru.email || '-'}</td>
                 <td class="p-3 text-sm text-gray-700 hidden lg:table-cell">${guru.noHp || '-'}</td>
                 <td class="p-3 text-sm">
                     <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${guru.kelas || '-'}</span>
                 </td>
                 <td class="p-3 text-center">
+                    ${(() => {
+                        const sVal = guru.status || 'Aktif';
+                        let sClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                        if (sVal === 'Nonaktif') sClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                        else if (sVal === 'Cuti') sClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                        else if (sVal.includes('GTY') || sVal === 'PNS' || sVal === 'PPPK') sClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                        else if (sVal.includes('GTT')) sClass = 'bg-purple-50 text-purple-700 border-purple-200';
+                        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${sClass}">${patchedEscapeHtml(sVal)}</span>`;
+                    })()}
+                </td>
+                <td class="p-3 text-center">
                     <div class="flex justify-center space-x-2 opacity-80 group-hover:opacity-100">
-                        <button onclick='viewGuru(${JSON.stringify(guru)})' class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition" title="Lihat Detail"><i class="fas fa-eye"></i></button>
-                        <button onclick='editGuru(${JSON.stringify(guru)})' class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteGuruConfirm('${patchedEsc(guru.username)}')" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus"><i class="fas fa-trash"></i></button>
+                        <button type="button" data-guru-action="view" data-guru-username="${patchedEscapeHtml(usernameKey)}" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition" title="Lihat Detail"><i class="fas fa-eye"></i></button>
+                        <button type="button" data-guru-action="edit" data-guru-username="${patchedEscapeHtml(usernameKey)}" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button type="button" data-guru-action="delete" data-guru-username="${patchedEscapeHtml(usernameKey)}" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
             </tr>
@@ -4136,6 +4264,499 @@ function handleArchiveAndReset() {
     // 10. START APP
     // ==========================================================================
     checkSession();
+
+    // ==========================================================================
+    // FITUR SCAN ID CARD GURU
+    // ==========================================================================
+    let guruScannerInstance = null;
+
+    function showScanGuruModal() {
+        const modalHtml = `
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full animate-fade-in relative">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 text-white flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-lg">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base">Scan ID Card Guru</h3>
+                        <p class="text-indigo-100 text-xs">Pindai QR / Barcode / Input NIP atau Username</p>
+                    </div>
+                </div>
+                <button onclick="closeScanGuruModal()" class="bg-white/10 hover:bg-white/20 p-2 rounded-lg text-white transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div class="flex gap-2">
+                    <button type="button" id="btnGuruScanModeCam" onclick="switchGuruScanMode('camera')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition">
+                        <i class="fas fa-camera mr-1"></i> Kamera Live
+                    </button>
+                    <button type="button" id="btnGuruScanModeManual" onclick="switchGuruScanMode('manual')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                        <i class="fas fa-barcode mr-1"></i> Input / USB Scanner
+                    </button>
+                </div>
+
+                <!-- CAMERA SCANNER VIEW -->
+                <div id="guruCamScanSection" class="space-y-3">
+                    <div id="guruQrReader" class="w-full bg-slate-900 rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center text-white text-xs relative">
+                        <div class="text-center p-4">
+                            <i class="fas fa-video text-3xl text-indigo-400 mb-2"></i>
+                            <p>Kamera siap diaktifkan</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" id="btnStartGuruCam" onclick="startGuruCameraScanner()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs shadow transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-play"></i> Mulai Kamera
+                        </button>
+                        <button type="button" id="btnStopGuruCam" onclick="stopGuruCameraScanner()" class="hidden flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl font-bold text-xs shadow transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-stop"></i> Matikan Kamera
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MANUAL / USB SCANNER VIEW -->
+                <div id="guruManualScanSection" class="hidden space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ketik / Scan Barcode / RFID ID Card</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="inputGuruScanQuery" placeholder="Scan kartu atau ketik username/NIP..." class="flex-1 border border-gray-200 bg-gray-50 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-purple-400 focus:bg-white outline-none transition" onkeydown="if(event.key==='Enter') executeGuruLookup(this.value)">
+                            <button type="button" onclick="executeGuruLookup(document.getElementById('inputGuruScanQuery').value)" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">Gunakan scanner barcode/RFID USB, atau ketik langsung lalu tekan Enter.</p>
+                    </div>
+                </div>
+
+                <!-- SCAN RESULT CONTAINER -->
+                <div id="guruScanResultBox" class="hidden animate-fade-in border rounded-xl p-4 bg-gray-50/80"></div>
+            </div>
+        </div>
+        `;
+
+        showModal(modalHtml);
+        setTimeout(() => {
+            switchGuruScanMode('camera');
+            startGuruCameraScanner();
+        }, 100);
+    }
+
+    function switchGuruScanMode(mode) {
+        const camSec = document.getElementById('guruCamScanSection');
+        const manSec = document.getElementById('guruManualScanSection');
+        const btnCam = document.getElementById('btnGuruScanModeCam');
+        const btnMan = document.getElementById('btnGuruScanModeManual');
+
+        if (mode === 'camera') {
+            if (camSec) camSec.classList.remove('hidden');
+            if (manSec) manSec.classList.add('hidden');
+            if (btnCam) { btnCam.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition'; }
+            if (btnMan) { btnMan.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition'; }
+        } else {
+            stopGuruCameraScanner();
+            if (camSec) camSec.classList.add('hidden');
+            if (manSec) manSec.classList.remove('hidden');
+            if (btnCam) { btnCam.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition'; }
+            if (btnMan) { btnMan.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-sm transition'; }
+            const input = document.getElementById('inputGuruScanQuery');
+            if (input) input.focus();
+        }
+    }
+
+    function startGuruCameraScanner() {
+        const readerEl = document.getElementById('guruQrReader');
+        if (!readerEl) return;
+
+        if (typeof Html5Qrcode === 'undefined') {
+            readerEl.innerHTML = `
+                <div class="p-4 text-center text-amber-600">
+                    <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                    <p>Modul kamera scanner sedang dimuat. Silakan gunakan mode input manual di atas.</p>
+                </div>
+            `;
+            return;
+        }
+
+        if (guruScannerInstance) {
+            try { guruScannerInstance.stop(); } catch(e){}
+        }
+
+        guruScannerInstance = new Html5Qrcode("guruQrReader");
+        const btnStart = document.getElementById('btnStartGuruCam');
+        const btnStop = document.getElementById('btnStopGuruCam');
+
+        guruScannerInstance.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => {
+                playScanBeep();
+                executeGuruLookup(decodedText);
+            },
+            () => {}
+        ).then(() => {
+            if (btnStart) btnStart.classList.add('hidden');
+            if (btnStop) btnStop.classList.remove('hidden');
+        }).catch((err) => {
+            readerEl.innerHTML = `
+                <div class="p-4 text-center text-red-500">
+                    <i class="fas fa-video-slash text-2xl mb-2"></i>
+                    <p class="font-bold">Kamera Tidak Tersedia</p>
+                    <p class="text-[11px] text-gray-400 mt-1">${err || 'Periksa izin akses kamera pada browser Anda.'}</p>
+                </div>
+            `;
+        });
+    }
+
+    function stopGuruCameraScanner() {
+        if (guruScannerInstance) {
+            try {
+                guruScannerInstance.stop().then(() => {
+                    guruScannerInstance.clear();
+                    guruScannerInstance = null;
+                }).catch(() => { guruScannerInstance = null; });
+            } catch (e) {
+                guruScannerInstance = null;
+            }
+        }
+        const btnStart = document.getElementById('btnStartGuruCam');
+        const btnStop = document.getElementById('btnStopGuruCam');
+        if (btnStart) btnStart.classList.remove('hidden');
+        if (btnStop) btnStop.classList.add('hidden');
+    }
+
+    function closeScanGuruModal() {
+        stopGuruCameraScanner();
+        closeModal();
+    }
+
+    function playScanBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            gain.gain.value = 0.15;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => { osc.stop(); ctx.close(); }, 120);
+        } catch(e){}
+    }
+
+    function executeGuruLookup(query) {
+        const raw = String(query || '').trim();
+        if (!raw) return;
+
+        const resultBox = document.getElementById('guruScanResultBox');
+        if (resultBox) {
+            resultBox.classList.remove('hidden');
+            resultBox.innerHTML = `
+                <div class="text-center py-4 text-purple-600 font-bold text-xs">
+                    <i class="fas fa-spinner fa-spin mr-1.5"></i> Mencari identitas guru: "${patchedEscapeHtml(raw)}"...
+                </div>
+            `;
+        }
+
+        // Local cache lookup first
+        const localMatch = (tableState.guru.fullData || []).find(g => 
+            g.username === raw || 
+            (g.name && g.name.toLowerCase() === raw.toLowerCase()) || 
+            g.email === raw || 
+            g.noHp === raw
+        );
+
+        if (localMatch) {
+            renderGuruScanResult(localMatch);
+            return;
+        }
+
+        // Remote lookup via endpoint
+        patchedRun('lookupGuruForScan', [raw])
+            .then(res => {
+                if (res.success && res.data) {
+                    renderGuruScanResult(res.data);
+                } else {
+                    if (resultBox) {
+                        resultBox.innerHTML = `
+                            <div class="text-center py-3 text-rose-600 text-xs font-semibold">
+                                <i class="fas fa-times-circle text-base mb-1 block"></i>
+                                ${patchedEscapeHtml(res.message || 'Data guru tidak ditemukan.')}
+                            </div>
+                        `;
+                    }
+                }
+            })
+            .catch(err => {
+                if (resultBox) {
+                    resultBox.innerHTML = `
+                        <div class="text-center py-3 text-rose-600 text-xs font-semibold">
+                            <i class="fas fa-exclamation-circle text-base mb-1 block"></i>
+                            ${patchedEscapeHtml(err.message || err || 'Gagal mencari data guru.')}
+                        </div>
+                    `;
+                }
+            });
+    }
+
+    function renderGuruScanResult(guru) {
+        const resultBox = document.getElementById('guruScanResultBox');
+        if (!resultBox) return;
+
+        const sVal = guru.status || 'Aktif';
+        let sClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        if (sVal === 'Nonaktif') sClass = 'bg-rose-100 text-rose-800 border-rose-300';
+        else if (sVal === 'Cuti') sClass = 'bg-amber-100 text-amber-800 border-amber-300';
+
+        resultBox.classList.remove('hidden');
+        resultBox.innerHTML = `
+            <div class="bg-white rounded-xl border border-purple-100 shadow-sm p-4 text-left">
+                <div class="flex items-center gap-3 mb-3 border-b border-gray-100 pb-3">
+                    <div class="w-12 h-12 bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-xl flex items-center justify-center text-lg font-bold shadow-md shrink-0">
+                        ${patchedEscapeHtml((guru.name || guru.username || 'G').charAt(0).toUpperCase())}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-gray-900 text-sm truncate">${patchedEscapeHtml(guru.name || '-')}</h4>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${sClass}">${patchedEscapeHtml(sVal)}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 font-mono">@${patchedEscapeHtml(guru.username || '-')}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg">
+                    <div><span class="text-gray-400 block text-[9px] uppercase font-bold">Wali Kelas</span><strong>${patchedEscapeHtml(guru.kelas || '-')}</strong></div>
+                    <div><span class="text-gray-400 block text-[9px] uppercase font-bold">No HP</span><strong>${patchedEscapeHtml(guru.noHp || '-')}</strong></div>
+                    <div class="col-span-2"><span class="text-gray-400 block text-[9px] uppercase font-bold">Email</span><strong class="truncate block">${patchedEscapeHtml(guru.email || '-')}</strong></div>
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="highlightGuruInTable('${patchedEsc(guru.username)}')" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fas fa-search-plus"></i> Sorot di Tabel
+                    </button>
+                    <button type="button" onclick="viewGuruByUsername('${patchedEsc(guru.username)}')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fas fa-eye"></i> Detail
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function highlightGuruInTable(username) {
+        closeScanGuruModal();
+        const searchInput = document.querySelector('input[oninput*="handleTableSearch(\'guru\'"]');
+        if (searchInput) {
+            searchInput.value = username;
+            handleTableSearch('guru', username);
+        }
+    }
+
+    window.showScanGuruModal = showScanGuruModal;
+    window.closeScanGuruModal = closeScanGuruModal;
+    window.switchGuruScanMode = switchGuruScanMode;
+    window.startGuruCameraScanner = startGuruCameraScanner;
+    window.stopGuruCameraScanner = stopGuruCameraScanner;
+    window.executeGuruLookup = executeGuruLookup;
+    window.highlightGuruInTable = highlightGuruInTable;
+
+    // ==========================================================================
+    // REALTIME CARD TAP SCAN FOR GURU MODAL
+    // ==========================================================================
+    let guruCardScanPollTimer = null;
+    let guruCardScanTimeoutId = null;
+    let guruCardScanLoadingVisible = false;
+    let guruCardScanRequestInFlight = false;
+    let guruCardScanActive = false;
+    let guruCardScanFingerprint = '';
+
+    function resetGuruCardScanRuntime() {
+        guruCardScanActive = false;
+        guruCardScanRequestInFlight = false;
+        guruCardScanFingerprint = '';
+
+        if (guruCardScanTimeoutId !== null) {
+            window.clearTimeout(guruCardScanTimeoutId);
+            guruCardScanTimeoutId = null;
+        }
+
+        if (guruCardScanPollTimer !== null) {
+            window.clearInterval(guruCardScanPollTimer);
+            guruCardScanPollTimer = null;
+        }
+    }
+
+    function showGuruCardScanLoadingModal() {
+        if (guruCardScanLoadingVisible) {
+            return;
+        }
+
+        guruCardScanLoadingVisible = true;
+        Swal.fire({
+            title: 'Menunggu Tap Kartu...',
+            html: `
+                <div class="space-y-3 text-center">
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 text-2xl animate-pulse">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <p class="text-sm text-gray-600 font-medium">Tempelkan kartu RFID pada mesin absensi atau gunakan barcode scanner.</p>
+                    <p class="text-xs text-gray-400">Menunggu respons otomatis...</p>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Batal Scan',
+            cancelButtonColor: '#64748b',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didClose: () => {
+                if (!guruCardScanLoadingVisible) {
+                    return;
+                }
+                guruCardScanLoadingVisible = false;
+                resetGuruCardScanRuntime();
+            },
+        });
+    }
+
+    function hideGuruCardScanLoadingModal() {
+        if (!guruCardScanLoadingVisible) {
+            return;
+        }
+
+        guruCardScanLoadingVisible = false;
+        if (Swal.isVisible()) {
+            Swal.close();
+        }
+    }
+
+    function showGuruCardScanSuccessModal(code) {
+        playScanBeep();
+        Swal.fire({
+            icon: 'success',
+            title: 'Kartu Terdeteksi!',
+            html: `Nomor Kartu: <strong class="font-mono text-indigo-600 text-base">${patchedEscapeHtml(code)}</strong>`,
+            timer: 1500,
+            showConfirmButton: false,
+        });
+    }
+
+    function stopGuruCardTapScan() {
+        hideGuruCardScanLoadingModal();
+        resetGuruCardScanRuntime();
+    }
+
+    async function pollGuruCardScan(cardInput) {
+        if (!guruCardScanActive || guruCardScanRequestInFlight) {
+            return;
+        }
+
+        guruCardScanRequestInFlight = true;
+
+        try {
+            const params = new URLSearchParams({
+                after_fingerprint: String(guruCardScanFingerprint || ''),
+            });
+
+            const response = await fetch(`${window.APP_ROUTES?.dataSiswaCardCapturePoll || '/data-siswa/card-capture-poll'}?${params.toString()}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            const result = await response.json().catch(() => ({}));
+            const payload = result && typeof result === 'object' && result.data && typeof result.data === 'object'
+                ? result.data
+                : (result && typeof result === 'object' ? result : {});
+
+            if (!guruCardScanActive) {
+                return;
+            }
+
+            if (payload && payload.after_fingerprint) {
+                guruCardScanFingerprint = payload.after_fingerprint.trim();
+            }
+
+            if (result && result.success && result.found && payload.code) {
+                const code = String(payload.code).trim().toUpperCase();
+                if (cardInput) {
+                    cardInput.value = code;
+                    cardInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    cardInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                stopGuruCardTapScan();
+                showGuruCardScanSuccessModal(code);
+                return;
+            }
+        } catch (err) {
+            console.warn('Card polling tick error:', err);
+        } finally {
+            guruCardScanRequestInFlight = false;
+        }
+    }
+
+    async function startGuruCardTapScan() {
+        const cardInput = document.getElementById('inputNomorKartuGuru') || document.querySelector('form input[name="nomorKartu"]');
+        if (!cardInput) {
+            showAlert('error', 'Field input nomor kartu tidak ditemukan.');
+            return;
+        }
+
+        if (guruCardScanActive) {
+            stopGuruCardTapScan();
+        }
+
+        showGuruCardScanLoadingModal();
+
+        try {
+            const response = await fetch(window.APP_ROUTES?.dataSiswaCardCaptureStart || '/data-siswa/card-capture-start', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                },
+                body: JSON.stringify({}),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            const payload = result && typeof result === 'object' && result.data && typeof result.data === 'object'
+                ? result.data
+                : (result && typeof result === 'object' ? result : {});
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Gagal memulai scanner mesin.');
+            }
+
+            guruCardScanActive = true;
+            guruCardScanFingerprint = String(payload.anchor_fingerprint || result.anchor_fingerprint || '').trim();
+
+            const timeoutSeconds = Number(payload.timeout_seconds || result.timeout_seconds || 30);
+            const pollIntervalMs = Math.max(Number(payload.poll_interval_ms || result.poll_interval_ms || 1000), 800);
+
+            guruCardScanTimeoutId = window.setTimeout(() => {
+                if (!guruCardScanActive) return;
+                stopGuruCardTapScan();
+                showAlert('info', 'Waktu scan habis. Silakan coba klik Scan lagi.');
+            }, timeoutSeconds * 1000);
+
+            guruCardScanPollTimer = window.setInterval(() => {
+                void pollGuruCardScan(cardInput);
+            }, pollIntervalMs);
+
+            await pollGuruCardScan(cardInput);
+        } catch (err) {
+            stopGuruCardTapScan();
+            showAlert('error', err.message || 'Gagal menghubungkan ke mesin absensi.');
+        }
+    }
+
+    window.startGuruCardTapScan = startGuruCardTapScan;
+    window.stopGuruCardTapScan = stopGuruCardTapScan;
 </script>
 
 

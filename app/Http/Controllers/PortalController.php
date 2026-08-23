@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Helpers\PortalAssets;
 use App\Models\Absensi;
 use App\Models\Alumni;
-use App\Models\Konfigurasi;
 use App\Models\Siswa;
 use App\Models\User;
 use Carbon\Carbon;
@@ -53,12 +52,20 @@ class PortalController extends Controller
         $alumniRawCount = Alumni::count();
         $totalAlumni = number_format($alumniRawCount, 0, ',', '.');
 
-        // 5. Config/Dynamic School Info
-        $schoolName = Konfigurasi::where('key', 'website_name')->value('value') ?: 'SMK Nurul Hidayah Bungah';
+        // 5. UI Settings — baca dari shared data yang sudah di-cache oleh AppServiceProvider
+        $uiSettings = view()->shared('appUiSettings') ?? [];
+
+        // 6. Config/Dynamic School Info
+        $schoolName = $uiSettings['website_nama'] ?? 'SMK Nurul Hidayah Bungah';
+
+        // 7. Tentukan URL foto gedung
+        $buildingUrl = !empty($uiSettings['portal_building_photo_url'])
+            ? $uiSettings['portal_building_photo_url']
+            : PortalAssets::getBuilding();
 
         $assets = [
             'logo' => PortalAssets::getLogo(),
-            'building' => PortalAssets::getBuilding(),
+            'building' => $buildingUrl,
             'card1' => PortalAssets::getCard1(),
             'card2' => PortalAssets::getCard2(),
             'card3' => PortalAssets::getCard3(),
@@ -72,7 +79,9 @@ class PortalController extends Controller
             'tingkatKehadiran',
             'totalAlumni',
             'schoolName',
-            'assets'
+            'assets',
+            'uiSettings',
+            'buildingUrl'
         ));
     }
 }

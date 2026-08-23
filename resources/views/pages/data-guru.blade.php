@@ -70,6 +70,17 @@
               <select id="filterKelasGuru" onchange="handleTableClassFilter('guru', this.value)" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2 w-full sm:w-40 font-bold shadow-sm">
                     <option value="">Semua Kelas</option>
               </select>
+
+              <select id="filterStatusGuru" onchange="handleTableStatusFilter('guru', this.value)" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2 w-full sm:w-36 font-bold shadow-sm">
+                    <option value="">Semua Status</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                    <option value="Cuti">Cuti</option>
+                    <option value="Guru Tetap (GTY)">Guru Tetap (GTY)</option>
+                    <option value="Guru Honorer (GTT)">Guru Honorer (GTT)</option>
+                    <option value="PNS">PNS</option>
+                    <option value="PPPK">PPPK</option>
+              </select>
           </div>
 
           <div class="relative w-full md:w-64">
@@ -90,14 +101,16 @@
                     <th class="p-3 text-center w-10">No</th>
                     <th class="p-3">Username</th>
                     <th class="p-3">Nama</th>
+                    <th class="p-3">Jabatan</th>
                     <th class="p-3 hidden lg:table-cell">Email</th>
                     <th class="p-3 hidden lg:table-cell">No HP</th>
                     <th class="p-3">{{ $kelasTitle }}</th>
+                    <th class="p-3 text-center">Status</th>
                     <th class="p-3 text-center">Aksi</th>
                 </tr>
             </thead>
               <tbody id="tbody-guru" class="divide-y divide-gray-50 bg-white text-xs">
-                  </tbody>
+              </tbody>
           </table>
       </div>
 

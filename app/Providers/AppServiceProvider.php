@@ -63,9 +63,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $settings = [
-            'website_nama' => 'E-ABSENSI',
-            'website_slogan' => 'School System',
-            'website_deskripsi' => 'Sistem Absensi Pintar',
+            'website_nama' => 'SMK Nurul Hidayah Bungah',
+            'website_slogan' => 'Sistem Informasi Manajemen SMK Nurul Hidayah',
+            'website_deskripsi' => 'Sistem Absensi Pintar & Portal Terpadu',
             'website_email' => '',
             'website_telepon' => '',
             'website_timezone' => 'Asia/Jakarta',
@@ -76,25 +76,75 @@ class AppServiceProvider extends ServiceProvider
             'website_favicon_path' => '',
             'website_logo_url' => null,
             'website_favicon_url' => null,
+            'portal_system_name' => 'SIMNUHA',
+            'portal_tagline' => 'Digitalisasi Layanan Sekolah dalam Satu Platform.',
+            'portal_hero_badge' => 'SIMNUHA • Integrated System Portal',
+            'portal_hero_subtitle' => 'Selamat Datang di',
+            'portal_hero_title' => 'SMK Nurul Hidayah Bungah',
+            'portal_hero_meta_tag' => 'SMK Pusat Keunggulan',
+            'portal_hero_location' => 'Bungah, Gresik',
+            'portal_hero_date_show' => '1',
+            'portal_building_photo_path' => '',
+            'portal_building_photo_url' => null,
+            'portal_section_title' => 'SIMNUHA Dashboard',
+            'portal_section_subtitle' => 'Akses cepat ke 5 sub aplikasi SIMNUHA',
+            'portal_stats_show' => '1',
+            'portal_stat1_label' => 'Total Siswa',
+            'portal_stat1_sub' => 'Data Aktif',
+            'portal_stat2_label' => 'Guru & Tendik',
+            'portal_stat2_sub' => 'Terdaftar',
+            'portal_stat3_label' => 'Kehadiran',
+            'portal_stat3_sub' => 'Realtime Presensi',
+            'portal_stat4_label' => 'Total Alumni',
+            'portal_stat4_sub' => 'Database Tracer',
+            'portal_visi' => '',
+            'portal_misi' => '',
+            'portal_footer_text' => '© {year} SMK Nurul Hidayah Bungah • SIMNUHA — Nurul Hidayah Integrated System',
+            'portal_motto' => 'Berilmu, Berakhlak, Berdaya Saing',
+            // Cards 1-5
+            'portal_card1_title' => 'SIMNUHA Absen',
+            'portal_card1_desc' => 'Sistem absensi guru, siswa, dan tenaga kependidikan secara realtime',
+            'portal_card1_url' => '/scanner',
+            'portal_card1_btn_text' => 'Buka Aplikasi',
+            'portal_card1_active' => '1',
+            'portal_card1_photo_path' => '',
+            'portal_card1_photo_url' => null,
+            'portal_card2_title' => 'SIMNUHA Finance',
+            'portal_card2_desc' => 'Pengelolaan kas, SPP, dan tagihan keuangan sekolah transparan',
+            'portal_card2_url' => '/keuangan/pembayaran',
+            'portal_card2_btn_text' => 'Buka Aplikasi',
+            'portal_card2_active' => '1',
+            'portal_card2_photo_path' => '',
+            'portal_card2_photo_url' => null,
+            'portal_card3_title' => 'SIMNUHA Letter',
+            'portal_card3_desc' => 'Surat-menyurat dan administrasi tata usaha terintegrasi',
+            'portal_card3_url' => '/persuratan',
+            'portal_card3_btn_text' => 'Buka Aplikasi',
+            'portal_card3_active' => '1',
+            'portal_card3_photo_path' => '',
+            'portal_card3_photo_url' => null,
+            'portal_card4_title' => 'SIMNUHA Alumni',
+            'portal_card4_desc' => 'Tracer study dan database alumni terintegrasi secara digital',
+            'portal_card4_url' => '/data-alumni',
+            'portal_card4_btn_text' => 'Buka Aplikasi',
+            'portal_card4_active' => '1',
+            'portal_card4_photo_path' => '',
+            'portal_card4_photo_url' => null,
+            'portal_card5_title' => 'SIMNUHA Dashboard',
+            'portal_card5_desc' => 'Statistik, laporan dan monitoring analitik data sekolah realtime',
+            'portal_card5_url' => '/dashboard',
+            'portal_card5_btn_text' => 'Buka Aplikasi',
+            'portal_card5_active' => '1',
+            'portal_card5_photo_path' => '',
+            'portal_card5_photo_url' => null,
         ];
 
         try {
             if (Schema::hasTable('konfigurasi')) {
                 $settings = Cache::remember('app_ui_settings_v1', 300, function () use ($settings) {
+                    $keys = array_keys($settings);
                     $rows = Konfigurasi::query()
-                        ->whereIn('key', [
-                            'website_nama',
-                            'website_slogan',
-                            'website_deskripsi',
-                            'website_email',
-                            'website_telepon',
-                            'website_timezone',
-                            'student_card_academic_year',
-                            'report_signer_name',
-                            'report_signer_position',
-                            'website_logo_path',
-                            'website_favicon_path',
-                        ])
+                        ->whereIn('key', $keys)
                         ->pluck('value', 'key')
                         ->all();
 
@@ -104,7 +154,7 @@ class AppServiceProvider extends ServiceProvider
                     if (!empty($final['website_logo_path'])) {
                         $fullLogoPath = storage_path('app/public/' . ltrim($final['website_logo_path'], '/'));
                         if (file_exists($fullLogoPath)) {
-                            $logoUrl = url('storage/' . ltrim($final['website_logo_path'], '/'));
+                            $logoUrl = asset('storage/' . ltrim($final['website_logo_path'], '/'));
                         }
                     }
                     if (!$logoUrl && class_exists(\App\Helpers\PortalAssets::class)) {
@@ -116,10 +166,38 @@ class AppServiceProvider extends ServiceProvider
                     if (!empty($final['website_favicon_path'])) {
                         $fullFavPath = storage_path('app/public/' . ltrim($final['website_favicon_path'], '/'));
                         if (file_exists($fullFavPath)) {
-                            $faviconUrl = url('storage/' . ltrim($final['website_favicon_path'], '/'));
+                            $faviconUrl = asset('storage/' . ltrim($final['website_favicon_path'], '/'));
                         }
                     }
                     $final['website_favicon_url'] = $faviconUrl ?: $final['website_logo_url'];
+
+                    $buildingPhotoUrl = null;
+                    if (!empty($final['portal_building_photo_path'])) {
+                        $fullBuildingPath = storage_path('app/public/' . ltrim($final['portal_building_photo_path'], '/'));
+                        if (file_exists($fullBuildingPath)) {
+                            $buildingPhotoUrl = asset('storage/' . ltrim($final['portal_building_photo_path'], '/'));
+                        }
+                    }
+                    $final['portal_building_photo_url'] = $buildingPhotoUrl ?: asset('images/hero-building-clean.png');
+
+                    for ($i = 1; $i <= 5; $i++) {
+                        $cardPathKey = "portal_card{$i}_photo_path";
+                        $cardUrlKey = "portal_card{$i}_photo_url";
+                        $cardPhotoUrl = null;
+                        if (!empty($final[$cardPathKey])) {
+                            $fullCardPath = storage_path('app/public/' . ltrim($final[$cardPathKey], '/'));
+                            if (file_exists($fullCardPath)) {
+                                $cardPhotoUrl = asset('storage/' . ltrim($final[$cardPathKey], '/'));
+                            }
+                        }
+                        if (!$cardPhotoUrl && class_exists(\App\Helpers\PortalAssets::class)) {
+                            $getter = "getCard{$i}";
+                            if (method_exists(\App\Helpers\PortalAssets::class, $getter)) {
+                                $cardPhotoUrl = \App\Helpers\PortalAssets::$getter();
+                            }
+                        }
+                        $final[$cardUrlKey] = $cardPhotoUrl ?: asset("images/cards/art-0{$i}.png");
+                    }
 
                     return $final;
                 });

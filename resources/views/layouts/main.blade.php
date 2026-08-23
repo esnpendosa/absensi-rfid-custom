@@ -12,7 +12,7 @@
   @php
     $isAppPage = auth()->check();
     $currentRouteName = (string) (request()->route()?->getName() ?? '');
-    $needsScannerRuntime = request()->routeIs('scanner');
+    $needsScannerRuntime = request()->routeIs('scanner') || request()->routeIs('data-guru') || request()->routeIs('data-piket');
     $needsCardRuntime = request()->routeIs('data-siswa') || request()->routeIs('kartu-siswa');
     $needsChartsRuntime = request()->routeIs('dashboard') || request()->routeIs('presensi-saya') || request()->routeIs('pelanggaran-saya');
   @endphp
@@ -90,7 +90,6 @@
             rekapBulanan: "{{ route('rekap-bulanan') }}",
             rekapTahunan: "{{ route('rekap-tahunan') }}",
             kenaikanKelas: "{{ route('kenaikan-kelas') }}",
-            arsip: "{{ route('arsip.index') }}",
             rekapAbsensi: "{{ route('rekap-absensi') }}",
             rekapAbsensiPelajaran: "{{ route('rekap-absensi-pelajaran') }}",
             scanner: "{{ route('scanner') }}",

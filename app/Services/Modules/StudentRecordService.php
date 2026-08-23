@@ -629,12 +629,27 @@ class StudentRecordService extends BaseActionService
 
         $nisn = trim((string) ($args[0] ?? ''));
         if ($nisn === '') {
-            return ['success' => false, 'message' => 'NISN tidak valid.'];
+            return ['success' => false, 'message' => 'Kode scan tidak valid.'];
         }
 
         $siswa = Siswa::query()->where('nisn', $nisn)->first();
         if (!$siswa) {
-            return ['success' => false, 'message' => 'NISN tidak ditemukan.'];
+            $guru = User::query()
+                ->where('username', $nisn)
+                ->orWhere('nomor_kartu', $nisn)
+                ->first();
+
+            if ($guru) {
+                return [
+                    'success' => true,
+                    'nisn' => $guru->username,
+                    'nama' => $guru->name,
+                    'kelas' => $guru->jabatan ?: 'Guru / Staf',
+                    'role' => 'guru',
+                ];
+            }
+
+            return ['success' => false, 'message' => 'Data Siswa atau Guru tidak ditemukan.'];
         }
 
         $siswaKelas = $this->normalizeKelasValue($siswa->kelas);
@@ -663,5 +678,4 @@ class StudentRecordService extends BaseActionService
             'kelas' => $siswa->kelas,
         ];
     }
-
 }

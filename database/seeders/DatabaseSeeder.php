@@ -65,7 +65,8 @@ class DatabaseSeeder extends Seeder
                 'tabungan-siswa.self.view',
                 'poin-pelanggaran.manage',
                 'poin-pelanggaran.view',
-               
+                'keuangan.laporan.view',
+                'keuangan.pos.manage',
             ],
             'admin' => [
                 'dashboard.view',
@@ -106,6 +107,8 @@ class DatabaseSeeder extends Seeder
                 'tabungan-siswa.self.view',
                 'poin-pelanggaran.manage',
                 'poin-pelanggaran.view',
+                'keuangan.laporan.view',
+                'keuangan.pos.manage',
             ],
             'bendahara' => [
                 'dashboard.view',
@@ -113,6 +116,8 @@ class DatabaseSeeder extends Seeder
                 'tabungan-siswa.manage',
                 'tabungan-siswa.report',
                 'tabungan-siswa.jenis.manage',
+                'keuangan.laporan.view',
+                'keuangan.pos.manage',
             ],
             'kepsek' => [
                 'dashboard.view',
@@ -139,6 +144,8 @@ class DatabaseSeeder extends Seeder
                 'rekap-absensi-pelajaran.view',
                 'tabungan-siswa.view',
                 'tabungan-siswa.report',
+                'keuangan.laporan.view',
+                'keuangan.pos.manage',
             ],
             'wakasek' => [
                 'dashboard.view',
@@ -167,6 +174,7 @@ class DatabaseSeeder extends Seeder
                 'izin-sakit.request',
                 'izin-sakit.approve',
                 'tabungan-siswa.view',
+                'keuangan.laporan.view',
             ],
             'piket' => [
                 'dashboard.view',

@@ -49,4 +49,9 @@ class DataGuruController extends PageActionController
     {
         return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->staffRecords->importGuruBulk($args, $auth));
     }
+
+    public function lookupForScan(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->staffRecords->lookupGuruForScan($args, $auth));
+    }
 }

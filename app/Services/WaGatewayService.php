@@ -873,7 +873,7 @@ class WaGatewayService
     {
         $provider = strtoupper(trim((string) ($settings['wa_gateway_provider'] ?? '')));
         $bodyType = strtolower(trim((string) ($settings['wa_gateway_body_type'] ?? 'application/json')));
-        $timeout = max(3, (int) ($settings['wa_gateway_timeout'] ?? 15));
+        $timeout = min(6, max(2, (int) ($settings['wa_gateway_timeout'] ?? 5)));
         $authorization = trim((string) ($settings['wa_gateway_authorization'] ?? ''));
         $customHeaderKey = trim((string) ($settings['wa_gateway_header_key'] ?? ''));
         $customHeaderValue = trim((string) ($settings['wa_gateway_header_value'] ?? ''));

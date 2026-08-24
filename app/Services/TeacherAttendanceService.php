@@ -28,18 +28,17 @@ class TeacherAttendanceService extends BaseActionService
         $today = $now->toDateString();
         $jamNow = $now->format('H:i:s');
 
+        $jamConfig = $this->getGlobalJamConfig();
+        $jamMasukMulai = $jamConfig['jam_masuk_mulai'] . ':00';
+        $jamMasukAkhir = $jamConfig['jam_masuk_akhir'] . ':59';
+        $jamPulangMulai = $jamConfig['jam_pulang_mulai'] . ':00';
+
         $row = AbsensiGuru::query()
             ->where('tanggal', $today)
             ->where('user_id', $teacher->id)
             ->first();
 
-        // Ambil konfigurasi jam jika ada
-        $jamMasukAkhir = '07:15:00';
-        $jamConfig = Konfigurasi::where('key', 'jam_masuk_akhir')->first();
-        if ($jamConfig && !empty($jamConfig->value)) {
-            $jamMasukAkhir = strlen($jamConfig->value) === 5 ? $jamConfig->value . ':00' : $jamConfig->value;
-        }
-
+        // 1. Presensi Masuk (Datang Pertama)
         if (!$row) {
             $isLate = $jamNow > $jamMasukAkhir;
             $keterangan = $isLate ? 'Terlambat' : 'Tepat Waktu';
@@ -49,7 +48,7 @@ class TeacherAttendanceService extends BaseActionService
                 'tanggal' => $today,
                 'nama' => $teacher->name,
                 'username' => $teacher->username,
-                'jabatan' => $teacher->jabatan ?: 'Guru',
+                'jabatan' => $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf'),
                 'jam_datang' => $jamNow,
                 'jam_pulang' => null,
                 'keterangan' => $keterangan,
@@ -70,7 +69,7 @@ class TeacherAttendanceService extends BaseActionService
                 'status_label' => 'Hadir',
                 'nisn' => $teacher->username,
                 'nama' => $teacher->name,
-                'kelas' => $teacher->jabatan ?: 'Guru / Staf',
+                'kelas' => $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf'),
                 'status' => 'Hadir',
                 'jamDatang' => $jamNow,
                 'jamPulang' => null,
@@ -80,9 +79,9 @@ class TeacherAttendanceService extends BaseActionService
             ];
         }
 
-        // Jika sudah ada jam datang dan belum ada jam pulang
+        // 2. Presensi Pulang (Sudah Datang, Belum Pulang)
         if ($row->jam_datang && !$row->jam_pulang) {
-            // Hindari double tap dalam 1 menit
+            // Hindari double tap dalam 60 detik
             $diffInSeconds = Carbon::parse($today . ' ' . $row->jam_datang)->diffInSeconds($now);
             if ($diffInSeconds < 60) {
                 return [
@@ -91,7 +90,7 @@ class TeacherAttendanceService extends BaseActionService
                     'status_label' => $row->status,
                     'nisn' => $teacher->username,
                     'nama' => $teacher->name,
-                    'kelas' => $teacher->jabatan ?: 'Guru / Staf',
+                    'kelas' => $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf'),
                     'status' => $row->status,
                     'jamDatang' => $row->jam_datang,
                     'jamPulang' => null,
@@ -101,6 +100,9 @@ class TeacherAttendanceService extends BaseActionService
                 ];
             }
 
+            $isPulangCepat = $jamNow < $jamPulangMulai;
+            $keteranganPulang = $isPulangCepat ? 'Pulang Cepat' : 'Tepat Waktu';
+
             $row->jam_pulang = $jamNow;
             $row->save();
 
@@ -109,7 +111,7 @@ class TeacherAttendanceService extends BaseActionService
                 'tanggal' => $today,
                 'jam' => $jamNow,
                 'status' => 'Pulang',
-                'keterangan' => 'Tepat Waktu',
+                'keterangan' => $keteranganPulang,
             ]);
 
             return [
@@ -118,24 +120,24 @@ class TeacherAttendanceService extends BaseActionService
                 'status_label' => 'Pulang',
                 'nisn' => $teacher->username,
                 'nama' => $teacher->name,
-                'kelas' => $teacher->jabatan ?: 'Guru / Staf',
+                'kelas' => $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf'),
                 'status' => 'Pulang',
                 'jamDatang' => $row->jam_datang,
                 'jamPulang' => $jamNow,
-                'keterangan' => $row->keterangan,
-                'message' => 'Presensi Pulang Guru: ' . $teacher->name,
+                'keterangan' => $keteranganPulang,
+                'message' => 'Presensi Pulang Guru: ' . $teacher->name . ' (' . $keteranganPulang . ')',
                 'role' => 'guru',
             ];
         }
 
-        // Sudah presensi datang & pulang
+        // 3. Sudah presensi datang & pulang lengkap
         return [
             'success' => true,
             'type' => 'pulang',
             'status_label' => $row->status,
             'nisn' => $teacher->username,
             'nama' => $teacher->name,
-            'kelas' => $teacher->jabatan ?: 'Guru / Staf',
+            'kelas' => $teacher->jabatan ?: ($teacher->kelas ?: 'Guru / Staf'),
             'status' => $row->status,
             'jamDatang' => $row->jam_datang,
             'jamPulang' => $row->jam_pulang,
@@ -143,6 +145,31 @@ class TeacherAttendanceService extends BaseActionService
             'message' => 'Sudah lengkap presensi masuk (' . $row->jam_datang . ') & pulang (' . $row->jam_pulang . ')',
             'role' => 'guru',
         ];
+    }
+
+    protected function getGlobalJamConfig(): array
+    {
+        $config = [
+            'jam_masuk_mulai' => '06:00',
+            'jam_masuk_akhir' => '07:15',
+            'jam_masuk_telat' => '07:15',
+            'jam_pulang_mulai' => '15:00',
+            'jam_pulang_akhir' => '17:00',
+        ];
+
+        $rows = Konfigurasi::query()
+            ->whereIn('key', array_keys($config))
+            ->get();
+
+        foreach ($rows as $row) {
+            $key = (string) $row->key;
+            $val = trim((string) $row->value);
+            if (array_key_exists($key, $config) && $val !== '') {
+                $config[$key] = strlen($val) === 5 ? $val : substr($val, 0, 5);
+            }
+        }
+
+        return $config;
     }
 
     /**

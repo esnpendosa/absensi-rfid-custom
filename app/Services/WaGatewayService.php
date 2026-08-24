@@ -348,17 +348,11 @@ class WaGatewayService
 
         $settings = array_merge($defaults, $rows);
         $legacyNotificationEnabled = (string) ($rows['wa_notif_enabled'] ?? $defaults['wa_notif_enabled']) === '1';
-        foreach ([
-            'wa_notif_attendance_enabled',
-            'wa_notif_izin_sakit_enabled',
-            'wa_notif_izin_sakit_reviewer_enabled',
-        ] as $notificationKey) {
-            if (!array_key_exists($notificationKey, $rows)) {
-                $settings[$notificationKey] = $legacyNotificationEnabled ? '1' : '0';
-            }
-        }
-        if (strtolower(trim((string) ($settings['wa_notif_target'] ?? ''))) !== 'siswa') {
-            $settings['wa_notif_target'] = 'siswa';
+        $targetVal = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
+        if (!in_array($targetVal, ['both', 'siswa', 'guru', 'all'], true)) {
+            $settings['wa_notif_target'] = 'both';
+        } else {
+            $settings['wa_notif_target'] = $targetVal;
         }
         $settings['wa_notif_attendance_enabled'] = (string) ($settings['wa_notif_attendance_enabled'] ?? '0') === '1';
         $settings['wa_notif_izin_sakit_enabled'] = (string) ($settings['wa_notif_izin_sakit_enabled'] ?? '0') === '1';

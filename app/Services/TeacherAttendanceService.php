@@ -520,6 +520,7 @@ class TeacherAttendanceService extends BaseActionService
                         'teacher_id' => $teacherId,
                         'message' => $e->getMessage(),
                     ]);
+                }
             });
 
             return;

@@ -46,8 +46,8 @@ class KeuanganSekolahController extends Controller
 
     public function storePos(Request $request): JsonResponse
     {
-        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
-            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat menambah pos keuangan.'], 403);
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin menambah pos keuangan.'], 403);
         }
 
         $validated = $request->validate([
@@ -78,8 +78,8 @@ class KeuanganSekolahController extends Controller
 
     public function updatePos(Request $request, PosKeuangan $posKeuangan): JsonResponse
     {
-        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
-            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat mengubah pos keuangan.'], 403);
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin mengubah pos keuangan.'], 403);
         }
         $validated = $request->validate([
             'kode' => ['required', 'string', 'max:30', 'unique:pos_keuangan,kode,' . $posKeuangan->id],
@@ -110,8 +110,8 @@ class KeuanganSekolahController extends Controller
 
     public function destroyPos(PosKeuangan $posKeuangan): JsonResponse
     {
-        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin'])) {
-            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Hanya Super Admin dan Admin yang dapat menghapus pos keuangan.'], 403);
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin menghapus pos keuangan.'], 403);
         }
 
         $posKeuangan->delete();

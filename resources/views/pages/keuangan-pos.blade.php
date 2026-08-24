@@ -12,7 +12,7 @@
             </h2>
             <p class="text-xs text-gray-500 mt-1">Kelola pos pembayaran secara dinamis (SPP, Uang Gedung, Ujian, Seragam, dll).</p>
         </div>
-        @if(auth()->user()?->hasAnyRole(['super-admin', 'admin']))
+        @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
         <button onclick="openModalTambahPos()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition transform active:scale-95">
             <i class="fas fa-plus"></i> Tambah Kategori Pos
         </button>
@@ -127,7 +127,7 @@ async function loadPosData() {
     }
 }
 
-const canManagePos = {{ auth()->user()?->hasAnyRole(['super-admin', 'admin']) ? 'true' : 'false' }};
+const canManagePos = {{ auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']) ? 'true' : 'false' }};
 
 function renderPosTable(data) {
     const tbody = document.getElementById('posTableBody');

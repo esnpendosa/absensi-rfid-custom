@@ -23,7 +23,6 @@ class SendWaAttendanceNotificationJob implements ShouldQueue
         public array $context = [],
         public ?string $nisn = null,
     ) {
-        $this->onQueue('notifications');
     }
 
     public function handle(WaGatewayService $waGatewayService): void

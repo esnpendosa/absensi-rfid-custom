@@ -23,7 +23,6 @@ class SendTelegramAttendanceNotificationJob implements ShouldQueue
         public array $context = [],
         public ?string $nisn = null,
     ) {
-        $this->onQueue('notifications');
     }
 
     public function handle(TelegramBotService $telegramBotService): void

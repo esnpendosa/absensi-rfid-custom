@@ -24,7 +24,7 @@
             </div>
         </div>
 
-        @if (session('success') || $errors->any())
+        @if (session('success') || (isset($errors) && $errors->any()))
             <div class="px-4 pt-4">
                 @if (session('success'))
                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
@@ -32,7 +32,7 @@
                     </div>
                 @endif
 
-                @if ($errors->any())
+                @if (isset($errors) && $errors->any())
                     <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                         {{ $errors->first() }}
                     </div>
@@ -40,7 +40,7 @@
             </div>
         @endif
 
-        <div id="kartu-absensi-create-panel" class="p-4 border-b border-gray-100 bg-white {{ $errors->any() ? '' : 'hidden' }}">
+        <div id="kartu-absensi-create-panel" class="p-4 border-b border-gray-100 bg-white {{ (isset($errors) && $errors->any()) ? '' : 'hidden' }}">
             <form method="POST" action="{{ route('kartu-absensi.store') }}" class="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
                 @csrf
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\KartuAbsensi;
 use App\Models\Siswa;
+use App\Models\User;
 use App\Services\AttendanceCardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,13 +18,16 @@ class KartuAbsensiController extends Controller
 {
     public function index(): View
     {
-        [$cards, $students] = $this->getPageData();
+        [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
 
         return view('pages.kartu-absensi', [
             'cards' => $cards,
             'students' => $students,
-            'cardRecords' => $cards->map(fn (KartuAbsensi $card) => $this->serializeCard($card))->values()->all(),
+            'teachers' => $teachers,
+            'teachersByCard' => $teachersByCard,
+            'cardRecords' => $cards->map(fn (KartuAbsensi $card) => $this->serializeCard($card, $teachersByCard))->values()->all(),
             'studentRecords' => $students->map(fn (Siswa $student) => $this->serializeStudent($student))->values()->all(),
+            'teacherRecords' => $teachers->map(fn (User $teacher) => $this->serializeTeacher($teacher))->values()->all(),
             'dataUrl' => route('kartu-absensi.data'),
             'streamUrl' => route('kartu-absensi.stream'),
             'storeUrl' => route('kartu-absensi.store'),
@@ -33,11 +37,11 @@ class KartuAbsensiController extends Controller
 
     public function data(): JsonResponse
     {
-        [$cards, $students] = $this->getPageData();
+        [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
 
         return response()->json([
             'success' => true,
-            'data' => $this->serializePayload($cards, $students),
+            'data' => $this->serializePayload($cards, $students, $teachers, $teachersByCard),
         ]);
     }
 
@@ -54,8 +58,8 @@ class KartuAbsensiController extends Controller
             $this->flushSseBuffer();
 
             while (!connection_aborted()) {
-                [$cards, $students] = $this->getPageData();
-                $payload = $this->serializePayload($cards, $students);
+                [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
+                $payload = $this->serializePayload($cards, $students, $teachers, $teachersByCard);
                 $fingerprint = sha1($this->encodeSsePayload($payload));
 
                 if ($lastFingerprint !== $fingerprint) {
@@ -175,20 +179,45 @@ class KartuAbsensiController extends Controller
     public function store(Request $request, AttendanceCardService $cardService): JsonResponse|RedirectResponse
     {
         $validated = $this->validateCard($request);
+        $code = $cardService->normalizeCode($validated['code']);
+        $ownerTarget = trim((string) ($request->input('owner_target') ?? ''));
+
+        $siswaId = null;
+        $guruId = null;
+
+        if (str_starts_with($ownerTarget, 'siswa_')) {
+            $siswaId = (int) str_replace('siswa_', '', $ownerTarget);
+        } elseif (str_starts_with($ownerTarget, 'guru_')) {
+            $guruId = (int) str_replace('guru_', '', $ownerTarget);
+        } elseif (!empty($validated['siswa_id'])) {
+            $siswaId = (int) $validated['siswa_id'];
+        }
 
         $card = KartuAbsensi::query()->create([
             'type' => KartuAbsensi::TYPE_RFID,
-            'code' => $cardService->normalizeCode($validated['code']),
-            'siswa_id' => $validated['siswa_id'] ?? null,
+            'code' => $code,
+            'siswa_id' => $siswaId,
         ]);
 
+        if ($guruId > 0) {
+            User::query()->where('nomor_kartu', $code)->update(['nomor_kartu' => null]);
+            $teacher = User::query()->find($guruId);
+            if ($teacher) {
+                $teacher->nomor_kartu = $code;
+                $teacher->save();
+            }
+        } elseif ($siswaId > 0) {
+            User::query()->where('nomor_kartu', $code)->update(['nomor_kartu' => null]);
+        }
+
         $card->load('siswa');
+        [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
 
         if ($this->wantsJson($request)) {
             return response()->json([
                 'success' => true,
                 'message' => 'Kartu absensi berhasil ditambahkan.',
-                'data' => $this->serializeCard($card),
+                'data' => $this->serializeCard($card, $teachersByCard),
             ], 201);
         }
 
@@ -201,19 +230,51 @@ class KartuAbsensiController extends Controller
     {
         $this->ensureManagedCard($kartuAbsensi);
 
-        $validated = $this->validateCardAssignment($request, $kartuAbsensi);
+        $ownerTarget = trim((string) ($request->input('owner_target') ?? ''));
+        $siswaId = null;
+        $guruId = null;
 
-        $kartuAbsensi->forceFill([
-            'siswa_id' => $validated['siswa_id'] ?? null,
-        ])->save();
+        if (str_starts_with($ownerTarget, 'siswa_')) {
+            $siswaId = (int) str_replace('siswa_', '', $ownerTarget);
+        } elseif (str_starts_with($ownerTarget, 'guru_')) {
+            $guruId = (int) str_replace('guru_', '', $ownerTarget);
+        } elseif ($request->has('siswa_id')) {
+            $rawSiswaId = $request->input('siswa_id');
+            if (!empty($rawSiswaId)) {
+                $siswaId = (int) $rawSiswaId;
+            }
+        }
+
+        if ($guruId > 0) {
+            $kartuAbsensi->siswa_id = null;
+            $kartuAbsensi->save();
+
+            User::query()->where('nomor_kartu', $kartuAbsensi->code)->where('id', '!=', $guruId)->update(['nomor_kartu' => null]);
+            $teacher = User::query()->find($guruId);
+            if ($teacher) {
+                $teacher->nomor_kartu = $kartuAbsensi->code;
+                $teacher->save();
+            }
+        } elseif ($siswaId > 0) {
+            $kartuAbsensi->siswa_id = $siswaId;
+            $kartuAbsensi->save();
+
+            User::query()->where('nomor_kartu', $kartuAbsensi->code)->update(['nomor_kartu' => null]);
+        } else {
+            $kartuAbsensi->siswa_id = null;
+            $kartuAbsensi->save();
+
+            User::query()->where('nomor_kartu', $kartuAbsensi->code)->update(['nomor_kartu' => null]);
+        }
 
         $kartuAbsensi->load('siswa');
+        [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
 
         if ($this->wantsJson($request)) {
             return response()->json([
                 'success' => true,
                 'message' => 'Kartu absensi berhasil diperbarui.',
-                'data' => $this->serializeCard($kartuAbsensi),
+                'data' => $this->serializeCard($kartuAbsensi, $teachersByCard),
             ]);
         }
 
@@ -227,7 +288,11 @@ class KartuAbsensiController extends Controller
         $this->ensureManagedCard($kartuAbsensi);
 
         $deletedId = $kartuAbsensi->id;
+        $code = $kartuAbsensi->code;
         $kartuAbsensi->delete();
+
+        // Also detach from any teacher
+        User::query()->where('nomor_kartu', $code)->update(['nomor_kartu' => null]);
 
         if ($this->wantsJson($request)) {
             return response()->json([
@@ -259,27 +324,9 @@ class KartuAbsensiController extends Controller
             ],
             'siswa_id' => [
                 'nullable',
-                'integer',
-                'exists:siswa,id',
-                $this->studentCardUniqueRule($card),
             ],
         ], [
             'code.unique' => 'Kode kartu sudah terdaftar.',
-            'siswa_id.unique' => 'Siswa ini sudah ditautkan ke kartu lain.',
-        ]);
-    }
-
-    protected function validateCardAssignment(Request $request, ?KartuAbsensi $card = null): array
-    {
-        return $request->validate([
-            'siswa_id' => [
-                'nullable',
-                'integer',
-                'exists:siswa,id',
-                $this->studentCardUniqueRule($card),
-            ],
-        ], [
-            'siswa_id.unique' => 'Siswa ini sudah ditautkan ke kartu lain.',
         ]);
     }
 
@@ -293,22 +340,40 @@ class KartuAbsensiController extends Controller
         return $request->expectsJson() || $request->ajax();
     }
 
-    protected function studentCardUniqueRule(?KartuAbsensi $card = null): Unique
+    protected function serializeCard(KartuAbsensi $card, array $teachersByCard = []): array
     {
-        return Rule::unique('kartu_absensi', 'siswa_id')
-            ->where(fn ($query) => $query->where('type', KartuAbsensi::TYPE_RFID))
-            ->ignore($card?->id);
-    }
+        $code = strtoupper(trim((string) $card->code));
+        $teacher = $card->siswa_id ? null : ($teachersByCard[$code] ?? null);
 
-    protected function serializeCard(KartuAbsensi $card): array
-    {
+        $ownerType = 'unlinked';
+        $ownerName = null;
+        $ownerIdentifier = null;
+        $ownerClass = null;
+
+        if ($card->siswa) {
+            $ownerType = 'siswa';
+            $ownerName = $card->siswa->nama;
+            $ownerIdentifier = $card->siswa->nisn;
+            $ownerClass = $card->siswa->kelas;
+        } elseif ($teacher) {
+            $ownerType = 'guru';
+            $ownerName = $teacher->name;
+            $ownerIdentifier = $teacher->username;
+            $ownerClass = $teacher->jabatan ?: 'Guru & Staf';
+        }
+
         return [
             'id' => $card->id,
             'code' => $card->code,
             'siswa_id' => $card->siswa_id,
-            'student_name' => $card->siswa?->nama,
-            'student_nisn' => $card->siswa?->nisn,
-            'student_class' => $card->siswa?->kelas,
+            'guru_id' => $teacher?->id,
+            'owner_type' => $ownerType,
+            'owner_name' => $ownerName,
+            'owner_identifier' => $ownerIdentifier,
+            'owner_class' => $ownerClass,
+            'student_name' => $ownerName,
+            'student_nisn' => $ownerIdentifier,
+            'student_class' => $ownerClass,
             'last_scanned_at' => $card->last_scanned_at?->toIso8601String(),
             'last_scanned_date' => $card->last_scanned_at?->format('d M Y'),
             'last_scanned_time' => $card->last_scanned_at?->format('H:i'),
@@ -320,17 +385,32 @@ class KartuAbsensiController extends Controller
     {
         return [
             'id' => $student->id,
+            'target_key' => 'siswa_' . $student->id,
             'nama' => $student->nama,
             'nisn' => $student->nisn,
             'kelas' => $student->kelas,
+            'type' => 'siswa',
         ];
     }
 
-    protected function serializePayload($cards, $students): array
+    protected function serializeTeacher(User $teacher): array
     {
         return [
-            'cards' => $cards->map(fn (KartuAbsensi $card) => $this->serializeCard($card))->values()->all(),
+            'id' => $teacher->id,
+            'target_key' => 'guru_' . $teacher->id,
+            'nama' => $teacher->name,
+            'username' => $teacher->username,
+            'jabatan' => $teacher->jabatan ?: 'Guru & Staf',
+            'type' => 'guru',
+        ];
+    }
+
+    protected function serializePayload($cards, $students, $teachers, $teachersByCard): array
+    {
+        return [
+            'cards' => $cards->map(fn (KartuAbsensi $card) => $this->serializeCard($card, $teachersByCard))->values()->all(),
             'students' => $students->map(fn (Siswa $student) => $this->serializeStudent($student))->values()->all(),
+            'teachers' => $teachers->map(fn (User $teacher) => $this->serializeTeacher($teacher))->values()->all(),
         ];
     }
 
@@ -429,10 +509,25 @@ class KartuAbsensiController extends Controller
 
     protected function getPageData(): array
     {
+        // Auto-sync: Pastikan semua Guru yang memiliki nomor_kartu terdaftar di tabel kartu_absensi
+        $teachersWithCard = User::query()
+            ->whereNotNull('nomor_kartu')
+            ->where('nomor_kartu', '!=', '')
+            ->get(['id', 'name', 'username', 'nomor_kartu', 'jabatan']);
+
+        foreach ($teachersWithCard as $teacher) {
+            $code = strtoupper(trim((string) $teacher->nomor_kartu));
+            if ($code !== '') {
+                KartuAbsensi::query()->firstOrCreate(
+                    ['code' => $code, 'type' => KartuAbsensi::TYPE_RFID],
+                    ['siswa_id' => null]
+                );
+            }
+        }
+
         $cards = KartuAbsensi::query()
             ->where('type', KartuAbsensi::TYPE_RFID)
             ->with('siswa')
-            ->orderByRaw('CASE WHEN siswa_id IS NULL THEN 0 ELSE 1 END')
             ->orderByDesc('last_scanned_at')
             ->orderByDesc('id')
             ->get();
@@ -441,6 +536,22 @@ class KartuAbsensiController extends Controller
             ->orderBy('nama')
             ->get(['id', 'nama', 'nisn', 'kelas']);
 
-        return [$cards, $students];
+        $teachers = User::query()
+            ->where(function ($q) {
+                $q->where('status', 'Aktif')
+                  ->orWhereNotNull('nomor_kartu');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'username', 'nomor_kartu', 'jabatan']);
+
+        $teachersByCard = [];
+        foreach ($teachers as $teacher) {
+            $code = strtoupper(trim((string) ($teacher->nomor_kartu ?? '')));
+            if ($code !== '') {
+                $teachersByCard[$code] = $teacher;
+            }
+        }
+
+        return [$cards, $students, $teachers, $teachersByCard];
     }
 }

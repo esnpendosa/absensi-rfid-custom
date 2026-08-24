@@ -2,6 +2,7 @@
     (function () {
         const initialCardRecords = @json($cardRecords);
         const initialStudentRecords = @json($studentRecords);
+        const initialTeacherRecords = @json($teacherRecords ?? []);
         const dataUrl = @json($dataUrl);
         const streamUrl = @json($streamUrl);
         const storeUrl = @json($storeUrl);
@@ -26,6 +27,9 @@
             : [];
         let studentRecords = Array.isArray(initialStudentRecords)
             ? initialStudentRecords.map(normalizeStudentRecord)
+            : [];
+        let teacherRecords = Array.isArray(initialTeacherRecords)
+            ? initialTeacherRecords.map(normalizeTeacherRecord)
             : [];
 
         sortCardRecords();
@@ -87,15 +91,23 @@
         }
 
         function normalizeCardRecord(record) {
+            const ownerType = record?.owner_type || (record?.siswa_id ? 'siswa' : (record?.guru_id ? 'guru' : 'unlinked'));
+            const ownerName = String(record?.owner_name || record?.student_name || '').trim();
+            const ownerId = String(record?.owner_identifier || record?.student_nisn || '').trim();
+            const ownerClass = String(record?.owner_class || record?.student_class || '').trim();
+
             return {
                 id: Number(record?.id || 0),
                 code: String(record?.code || '').trim().toUpperCase(),
-                siswa_id: record?.siswa_id === null || record?.siswa_id === undefined || record?.siswa_id === ''
-                    ? null
-                    : Number(record.siswa_id),
-                student_name: String(record?.student_name || '').trim(),
-                student_nisn: String(record?.student_nisn || '').trim(),
-                student_class: String(record?.student_class || '').trim(),
+                siswa_id: record?.siswa_id ? Number(record.siswa_id) : null,
+                guru_id: record?.guru_id ? Number(record.guru_id) : null,
+                owner_type: ownerType,
+                owner_name: ownerName,
+                owner_identifier: ownerId,
+                owner_class: ownerClass,
+                student_name: ownerName,
+                student_nisn: ownerId,
+                student_class: ownerClass,
                 last_scanned_at: record?.last_scanned_at || null,
                 last_scanned_date: record?.last_scanned_date || null,
                 last_scanned_time: record?.last_scanned_time || null,
@@ -106,19 +118,32 @@
         function normalizeStudentRecord(record) {
             return {
                 id: Number(record?.id || 0),
+                target_key: 'siswa_' + Number(record?.id || 0),
                 nama: String(record?.nama || '').trim(),
                 nisn: String(record?.nisn || '').trim(),
                 kelas: String(record?.kelas || '').trim(),
+                type: 'siswa',
+            };
+        }
+
+        function normalizeTeacherRecord(record) {
+            return {
+                id: Number(record?.id || 0),
+                target_key: 'guru_' + Number(record?.id || 0),
+                nama: String(record?.nama || record?.name || '').trim(),
+                username: String(record?.username || '').trim(),
+                jabatan: String(record?.jabatan || 'Guru & Staf').trim(),
+                type: 'guru',
             };
         }
 
         function sortCardRecords() {
             cardRecords.sort((left, right) => {
-                const leftLinked = left.siswa_id ? 1 : 0;
-                const rightLinked = right.siswa_id ? 1 : 0;
+                const leftLinked = left.owner_type !== 'unlinked' ? 1 : 0;
+                const rightLinked = right.owner_type !== 'unlinked' ? 1 : 0;
 
                 if (leftLinked !== rightLinked) {
-                    return leftLinked - rightLinked;
+                    return rightLinked - leftLinked; // Show linked cards first
                 }
 
                 const leftScan = left.last_scanned_at ? Date.parse(left.last_scanned_at) || 0 : 0;
@@ -136,25 +161,27 @@
             return String(itemUrlTemplate).replace('__ID__', encodeURIComponent(String(cardId)));
         }
 
-        function getStudentOptionLabel(student) {
-            const kelas = student?.kelas ? ` - ${student.kelas}` : '';
-            return `${student?.nama || '-'} (${student?.nisn || '-'})${kelas}`;
-        }
-
-        function getSelectedStudent(studentId) {
-            if (studentId === null || studentId === undefined || studentId === '') {
-                return null;
+        function getOwnerOptionLabel(targetKey) {
+            if (!targetKey) return '';
+            if (targetKey.startsWith('guru_')) {
+                const id = Number(targetKey.replace('guru_', ''));
+                const teacher = teacherRecords.find((t) => t.id === id);
+                return teacher ? `👨‍🏫 ${teacher.nama} (${teacher.username}) - ${teacher.jabatan}` : '';
             }
-
-            return studentRecords.find((student) => Number(student.id) === Number(studentId)) || null;
+            if (targetKey.startsWith('siswa_')) {
+                const id = Number(targetKey.replace('siswa_', ''));
+                const student = studentRecords.find((s) => s.id === id);
+                return student ? `🎓 ${student.nama} (${student.nisn})${student.kelas ? ' - ' + student.kelas : ''}` : '';
+            }
+            return '';
         }
 
         function getSearchBlob(record) {
             return normalize([
                 record.code,
-                record.student_name,
-                record.student_nisn,
-                record.student_class,
+                record.owner_name,
+                record.owner_identifier,
+                record.owner_class,
                 record.last_scanned_date,
                 record.last_scanned_time,
                 record.last_scanned_source,
@@ -167,7 +194,8 @@
 
             return cardRecords.filter((record) => {
                 const matchesSearch = search === '' || getSearchBlob(record).includes(search);
-                const recordStatus = record.siswa_id ? 'linked' : 'unlinked';
+                const isLinked = record.owner_type !== 'unlinked';
+                const recordStatus = isLinked ? 'linked' : 'unlinked';
                 const matchesStatus = status === '' || recordStatus === status;
 
                 return matchesSearch && matchesStatus;
@@ -175,15 +203,42 @@
         }
 
         function buildRowHtml(record, rowNumber) {
-            const studentHtml = record.siswa_id
-                ? `
-                    <div class="font-semibold text-gray-900">${escapeHtml(record.student_name)}</div>
-                    <div class="text-[11px] text-gray-500">${escapeHtml(record.student_nisn)}</div>
-                `
-                : `
+            let ownerHtml = '';
+            let classBadgeHtml = '';
+
+            if (record.owner_type === 'guru' || record.guru_id) {
+                ownerHtml = `
+                    <div class="font-semibold text-indigo-900 flex items-center gap-1.5">
+                        <span>${escapeHtml(record.owner_name)}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">GURU & STAF</span>
+                    </div>
+                    <div class="text-[11px] text-gray-500">${escapeHtml(record.owner_identifier)}</div>
+                `;
+                classBadgeHtml = `
+                    <span class="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[11px] font-bold">
+                        ${escapeHtml(record.owner_class || 'Guru & Staf')}
+                    </span>
+                `;
+            } else if (record.owner_type === 'siswa' || record.siswa_id) {
+                ownerHtml = `
+                    <div class="font-semibold text-gray-900 flex items-center gap-1.5">
+                        <span>${escapeHtml(record.owner_name)}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">SISWA</span>
+                    </div>
+                    <div class="text-[11px] text-gray-500">${escapeHtml(record.owner_identifier)}</div>
+                `;
+                classBadgeHtml = `
+                    <span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 text-[11px] font-semibold">
+                        ${escapeHtml(record.owner_class || '-')}
+                    </span>
+                `;
+            } else {
+                ownerHtml = `
                     <div class="font-semibold text-amber-700">Belum ditautkan</div>
                     <div class="text-[11px] text-amber-600">Kartu belum punya pemilik</div>
                 `;
+                classBadgeHtml = '<span class="text-gray-400">-</span>';
+            }
 
             const scanHtml = record.last_scanned_at
                 ? `
@@ -199,16 +254,12 @@
                         <div class="font-mono font-semibold text-gray-900 uppercase">${escapeHtml(record.code)}</div>
                         <div class="text-[10px] text-gray-400">ID #${escapeHtml(record.id)}</div>
                     </td>
-                    <td class="p-3 align-top">${studentHtml}</td>
-                    <td class="p-3 hidden md:table-cell align-top">
-                        <span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 text-[11px] font-semibold">
-                            ${escapeHtml(record.student_class || '-')}
-                        </span>
-                    </td>
+                    <td class="p-3 align-top">${ownerHtml}</td>
+                    <td class="p-3 hidden md:table-cell align-top">${classBadgeHtml}</td>
                     <td class="p-3 hidden lg:table-cell align-top">${scanHtml}</td>
                     <td class="p-3 align-top text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <button type="button" onclick="showEditKartuAbsensiModal(${record.id})" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit">
+                            <button type="button" onclick="showEditKartuAbsensiModal(${record.id})" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit / Tautkan">
                                 <i class="fas fa-pen"></i>
                             </button>
                             <button type="button" onclick="confirmDeleteKartuAbsensi(${record.id})" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus">
@@ -220,55 +271,17 @@
             `;
         }
 
-        function renderKartuAbsensiLoading(message = 'Memuat data kartu absensi...') {
-            const tbody = document.getElementById('tbody-kartu-absensi');
-            const info = document.getElementById('info-kartu-absensi');
-            const prevButton = document.getElementById('btn-prev-kartu-absensi');
-            const nextButton = document.getElementById('btn-next-kartu-absensi');
-
-            if (!tbody) {
-                return;
-            }
-
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="p-8 text-center">
-                        <div class="inline-flex items-center gap-2 text-indigo-600 text-sm font-semibold">
-                            <i class="fas fa-circle-notch fa-spin"></i>
-                            <span>${escapeHtml(message)}</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-
-            if (info) {
-                info.textContent = message;
-            }
-
-            if (prevButton) {
-                prevButton.disabled = true;
-            }
-
-            if (nextButton) {
-                nextButton.disabled = true;
-            }
-        }
-
         function renderKartuAbsensiTable() {
             const tbody = document.getElementById('tbody-kartu-absensi');
             const info = document.getElementById('info-kartu-absensi');
             const prevButton = document.getElementById('btn-prev-kartu-absensi');
             const nextButton = document.getElementById('btn-next-kartu-absensi');
 
-            if (!tbody) {
-                return;
-            }
+            if (!tbody) return;
 
             const filteredRecords = getFilteredRecords();
             const totalRecords = filteredRecords.length;
-            const totalPages = state.limit === Infinity
-                ? 1
-                : Math.max(1, Math.ceil(totalRecords / state.limit));
+            const totalPages = state.limit === Infinity ? 1 : Math.max(1, Math.ceil(totalRecords / state.limit));
 
             if (state.page > totalPages) state.page = totalPages;
             if (state.page < 1) state.page = 1;
@@ -301,13 +314,8 @@
                 info.textContent = `Menampilkan ${start + 1}-${end} dari ${totalRecords} data`;
             }
 
-            if (prevButton) {
-                prevButton.disabled = state.page <= 1;
-            }
-
-            if (nextButton) {
-                nextButton.disabled = state.limit === Infinity || state.page >= totalPages;
-            }
+            if (prevButton) prevButton.disabled = state.page <= 1;
+            if (nextButton) nextButton.disabled = state.limit === Infinity || state.page >= totalPages;
         }
 
         function getModalShell(create = false) {
@@ -346,105 +354,105 @@
             if (!shell) return;
 
             const host = shell.querySelector('[data-kartu-modal-host]');
-            if (host) {
-                host.innerHTML = '';
-            }
+            if (host) host.innerHTML = '';
 
             shell.classList.add('hidden');
             shell.classList.remove('flex');
             document.body.classList.remove('overflow-hidden');
         }
 
-        function renderStudentDropdownItems(keyword = '') {
-            const dropdown = document.getElementById('kartuAbsensiStudentDropdown');
+        function renderOwnerDropdownItems(keyword = '') {
+            const dropdown = document.getElementById('kartuAbsensiOwnerDropdown');
             if (!dropdown) return;
 
             const query = normalize(keyword);
-            const filtered = query === ''
-                ? studentRecords
-                : studentRecords.filter((student) => {
-                    const blob = normalize([
-                        student.nama,
-                        student.nisn,
-                        student.kelas,
-                    ].join(' '));
-
-                    return blob.includes(query);
-                });
-
             const items = [`
                 <button
                     type="button"
-                    onclick="selectKartuAbsensiStudent('')"
-                    class="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-gray-600 transition border-b border-gray-100"
+                    onclick="selectKartuAbsensiOwner('')"
+                    class="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-xs font-semibold text-gray-600 transition border-b border-gray-100"
                 >
-                    Belum ditautkan
+                    ❌ Jangan Tautkan (Belum Ditautkan)
                 </button>
             `];
 
-            if (filtered.length === 0) {
-                items.push('<div class="px-3 py-3 text-xs text-gray-400 italic">Siswa tidak ditemukan.</div>');
-            } else {
-                filtered.forEach((student) => {
+            const filteredTeachers = teacherRecords.filter((teacher) => {
+                if (query === '') return true;
+                const blob = normalize([teacher.nama, teacher.username, teacher.jabatan].join(' '));
+                return blob.includes(query);
+            });
+
+            const filteredStudents = studentRecords.filter((student) => {
+                if (query === '') return true;
+                const blob = normalize([student.nama, student.nisn, student.kelas].join(' '));
+                return blob.includes(query);
+            });
+
+            if (filteredTeachers.length > 0) {
+                items.push('<div class="px-3 py-1.5 bg-indigo-50/70 text-[10px] font-bold text-indigo-700 uppercase tracking-wider">👨‍🏫 Guru & Staf</div>');
+                filteredTeachers.forEach((teacher) => {
                     items.push(`
                         <button
                             type="button"
-                            onclick="selectKartuAbsensiStudent(${Number(student.id)})"
-                            class="w-full text-left px-3 py-2 hover:bg-indigo-50 transition border-b border-gray-50 last:border-none"
+                            onclick="selectKartuAbsensiOwner('guru_${teacher.id}')"
+                            class="w-full text-left px-3 py-2 hover:bg-indigo-50 transition border-b border-gray-50"
                         >
-                            <div class="text-sm font-semibold text-gray-800">${escapeHtml(student.nama)}</div>
-                            <div class="text-[11px] text-gray-500">${escapeHtml(student.nisn)}${student.kelas ? ` | ${escapeHtml(student.kelas)}` : ''}</div>
+                            <div class="text-xs font-bold text-gray-800">${escapeHtml(teacher.nama)}</div>
+                            <div class="text-[10px] text-gray-500">${escapeHtml(teacher.username)} • ${escapeHtml(teacher.jabatan)}</div>
                         </button>
                     `);
                 });
             }
 
+            if (filteredStudents.length > 0) {
+                items.push('<div class="px-3 py-1.5 bg-blue-50/70 text-[10px] font-bold text-blue-700 uppercase tracking-wider">🎓 Siswa</div>');
+                filteredStudents.forEach((student) => {
+                    items.push(`
+                        <button
+                            type="button"
+                            onclick="selectKartuAbsensiOwner('siswa_${student.id}')"
+                            class="w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-gray-50"
+                        >
+                            <div class="text-xs font-bold text-gray-800">${escapeHtml(student.nama)}</div>
+                            <div class="text-[10px] text-gray-500">${escapeHtml(student.nisn)}${student.kelas ? ` • Kelas ${escapeHtml(student.kelas)}` : ''}</div>
+                        </button>
+                    `);
+                });
+            }
+
+            if (filteredTeachers.length === 0 && filteredStudents.length === 0) {
+                items.push('<div class="px-3 py-4 text-xs text-gray-400 italic text-center">Data guru atau siswa tidak ditemukan.</div>');
+            }
+
             dropdown.innerHTML = items.join('');
         }
 
-        function openKartuAbsensiStudentDropdown() {
-            const dropdown = document.getElementById('kartuAbsensiStudentDropdown');
-
+        window.openKartuAbsensiOwnerDropdown = function () {
+            const dropdown = document.getElementById('kartuAbsensiOwnerDropdown');
             if (!dropdown) return;
-
-            renderStudentDropdownItems('');
+            renderOwnerDropdownItems('');
             dropdown.classList.remove('hidden');
-        }
+        };
 
-        function filterKartuAbsensiStudentDropdown(keyword) {
-            const hidden = document.getElementById('kartuAbsensiStudentId');
-            if (hidden) {
-                hidden.value = '';
-            }
+        window.filterKartuAbsensiOwnerDropdown = function (keyword) {
+            renderOwnerDropdownItems(keyword);
+            const dropdown = document.getElementById('kartuAbsensiOwnerDropdown');
+            if (dropdown) dropdown.classList.remove('hidden');
+        };
 
-            renderStudentDropdownItems(keyword);
+        window.selectKartuAbsensiOwner = function (targetKey) {
+            const input = document.getElementById('kartuAbsensiOwnerSearch');
+            const hidden = document.getElementById('kartuAbsensiOwnerTarget');
 
-            const dropdown = document.getElementById('kartuAbsensiStudentDropdown');
-            if (dropdown) {
-                dropdown.classList.remove('hidden');
-            }
-        }
+            if (input) input.value = getOwnerOptionLabel(targetKey);
+            if (hidden) hidden.value = targetKey;
 
-        function selectKartuAbsensiStudent(studentId) {
-            const input = document.getElementById('kartuAbsensiStudentSearch');
-            const hidden = document.getElementById('kartuAbsensiStudentId');
-            const student = getSelectedStudent(studentId);
+            closeKartuAbsensiOwnerDropdown();
+        };
 
-            if (input) {
-                input.value = student ? getStudentOptionLabel(student) : '';
-            }
-
-            if (hidden) {
-                hidden.value = student ? String(student.id) : '';
-            }
-
-            closeKartuAbsensiStudentDropdown();
-        }
-
-        function closeKartuAbsensiStudentDropdown() {
-            const dropdown = document.getElementById('kartuAbsensiStudentDropdown');
+        function closeKartuAbsensiOwnerDropdown() {
+            const dropdown = document.getElementById('kartuAbsensiOwnerDropdown');
             if (!dropdown) return;
-
             setTimeout(() => {
                 dropdown.classList.add('hidden');
             }, 200);
@@ -452,68 +460,69 @@
 
         function getFormHtml(cardId = null) {
             const isEdit = cardId !== null && cardId !== undefined;
-            const card = isEdit
-                ? cardRecords.find((item) => Number(item.id) === Number(cardId)) || null
-                : null;
+            const card = isEdit ? cardRecords.find((item) => Number(item.id) === Number(cardId)) || null : null;
 
-            const title = isEdit ? 'Edit Kartu Absensi' : 'Tambah Kartu Absensi';
+            let currentTargetKey = '';
+            if (card) {
+                if (card.guru_id) currentTargetKey = 'guru_' + card.guru_id;
+                else if (card.siswa_id) currentTargetKey = 'siswa_' + card.siswa_id;
+            }
+
+            const currentLabel = getOwnerOptionLabel(currentTargetKey);
+            const title = isEdit ? 'Edit & Tautkan Kartu Absensi' : 'Tambah Kartu Absensi';
             const submitLabel = isEdit ? 'Perbarui' : 'Simpan';
-            const selectedStudent = getSelectedStudent(card?.siswa_id ?? null);
-            const selectedStudentLabel = selectedStudent ? getStudentOptionLabel(selectedStudent) : '';
             const codeInputClass = isEdit
-                ? 'w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-2.5 transition-all font-mono uppercase cursor-not-allowed'
-                : 'w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all font-mono uppercase';
+                ? 'w-full bg-gray-100 border border-gray-200 text-gray-600 text-xs rounded-lg block p-2.5 transition-all font-mono uppercase cursor-not-allowed font-bold'
+                : 'w-full bg-white border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all font-mono uppercase font-bold';
 
             return `
                 <div class="bg-white rounded-2xl shadow-2xl overflow-visible">
-                    <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <h3 class="text-xl font-bold text-gray-800">${title}</h3>
+                    <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="text-base font-bold text-gray-800">${title}</h3>
                         <button type="button" onclick="closeKartuAbsensiModal()" class="text-gray-400 hover:text-gray-600">
-                            <i class="fas fa-times text-lg"></i>
+                            <i class="fas fa-times text-sm"></i>
                         </button>
                     </div>
-                    <div class="p-6 overflow-visible">
-                        <div id="kartuAbsensiFormError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"></div>
+                    <div class="p-5 overflow-visible">
+                        <div id="kartuAbsensiFormError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 font-semibold"></div>
                         <form onsubmit="submitKartuAbsensiForm(event, ${isEdit ? Number(card.id) : 'null'})" class="space-y-4">
                             <div>
-                                <label class="block mb-1 text-xs font-bold text-gray-500 uppercase tracking-wide">Kode Kartu</label>
+                                <label class="block mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Kode Kartu / UID</label>
                                 <input
                                     id="kartuAbsensiCodeInput"
                                     type="text"
                                     value="${escapeHtml(card?.code || '')}"
-                                    placeholder="Contoh: 04AABBCC"
+                                    placeholder="Contoh: 3277946221"
                                     class="${codeInputClass}"
                                     ${isEdit ? 'readonly' : 'required'}
                                 >
-                                
                             </div>
 
                             <div>
-                                <label class="block mb-1 text-xs font-bold text-gray-500 uppercase tracking-wide">Tautkan ke Siswa</label>
+                                <label class="block mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Tautkan ke Pemilik (Guru / Siswa)</label>
                                 <div class="relative z-30">
                                     <input
-                                        id="kartuAbsensiStudentSearch"
+                                        id="kartuAbsensiOwnerSearch"
                                         type="text"
-                                        value="${escapeHtml(selectedStudentLabel)}"
-                                        placeholder="Cari nama atau NISN siswa"
+                                        value="${escapeHtml(currentLabel)}"
+                                        placeholder="Ketik untuk cari nama Siswa atau Guru & Staf..."
                                         autocomplete="off"
-                                        onfocus="openKartuAbsensiStudentDropdown()"
-                                        oninput="filterKartuAbsensiStudentDropdown(this.value)"
-                                        onblur="closeKartuAbsensiStudentDropdown()"
-                                        class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all"
+                                        onfocus="openKartuAbsensiOwnerDropdown()"
+                                        oninput="filterKartuAbsensiOwnerDropdown(this.value)"
+                                        class="w-full bg-white border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all"
                                     >
-                                    <input id="kartuAbsensiStudentId" type="hidden" value="${card?.siswa_id ? escapeHtml(card.siswa_id) : ''}">
-                                    <div id="kartuAbsensiStudentDropdown" class="hidden absolute left-0 right-0 z-40 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-56 overflow-y-auto"></div>
+                                    <input id="kartuAbsensiOwnerTarget" type="hidden" value="${escapeHtml(currentTargetKey)}">
+                                    <div id="kartuAbsensiOwnerDropdown" class="hidden absolute left-0 right-0 z-40 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto divide-y divide-gray-50"></div>
                                 </div>
-                                <p class="mt-2 text-[11px] text-gray-500">Biarkan kosong jika kartu belum ingin ditautkan ke siswa.</p>
+                                <p class="mt-1.5 text-[10px] text-gray-400">Pilih dari Guru atau Siswa. Kosongkan jika kartu belum ingin ditautkan.</p>
                             </div>
 
-                            <div class="flex justify-end gap-2 pt-2">
-                                <button type="button" onclick="closeKartuAbsensiModal()" class="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold text-xs hover:bg-gray-50 hover:border-gray-300 transition">
-                                    <i class="fas fa-times text-[10px]"></i>Batal
+                            <div class="flex justify-end gap-2 pt-3">
+                                <button type="button" onclick="closeKartuAbsensiModal()" class="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 font-bold text-xs hover:bg-gray-50 transition">
+                                    <i class="fas fa-times text-[10px]"></i> Batal
                                 </button>
-                                <button type="submit" id="kartuAbsensiSubmitButton" class="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs shadow-sm hover:from-indigo-700 hover:to-blue-700 transition">
-                                    <i class="fas fa-save text-[10px]"></i>${submitLabel}
+                                <button type="submit" id="kartuAbsensiSubmitButton" class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-sm hover:bg-blue-700 transition">
+                                    <i class="fas fa-save text-[10px]"></i> ${submitLabel}
                                 </button>
                             </div>
                         </form>
@@ -568,12 +577,15 @@
         }
 
         function applyServerData(payload) {
-            cardRecords = Array.isArray(payload?.cards)
-                ? payload.cards.map(normalizeCardRecord)
-                : [];
-            studentRecords = Array.isArray(payload?.students)
-                ? payload.students.map(normalizeStudentRecord)
-                : [];
+            if (Array.isArray(payload?.cards)) {
+                cardRecords = payload.cards.map(normalizeCardRecord);
+            }
+            if (Array.isArray(payload?.students)) {
+                studentRecords = payload.students.map(normalizeStudentRecord);
+            }
+            if (Array.isArray(payload?.teachers)) {
+                teacherRecords = payload.teachers.map(normalizeTeacherRecord);
+            }
             sortCardRecords();
         }
 
@@ -590,12 +602,12 @@
             sortCardRecords();
         }
 
-        function showAddKartuAbsensiModal() {
+        window.showAddKartuAbsensiModal = function () {
             setFormError('');
             showKartuAbsensiModal(getFormHtml());
-        }
+        };
 
-        function showEditKartuAbsensiModal(cardId) {
+        window.showEditKartuAbsensiModal = function (cardId) {
             const card = cardRecords.find((item) => Number(item.id) === Number(cardId)) || null;
             if (!card) {
                 showAlert('error', 'Data kartu tidak ditemukan.');
@@ -604,35 +616,22 @@
 
             setFormError('');
             showKartuAbsensiModal(getFormHtml(card.id));
-        }
+        };
 
-        async function submitKartuAbsensiForm(event, cardId = null) {
+        window.submitKartuAbsensiForm = async function (event, cardId = null) {
             event.preventDefault();
             setFormError('');
 
             const codeInput = document.getElementById('kartuAbsensiCodeInput');
-            const studentSearchInput = document.getElementById('kartuAbsensiStudentSearch');
-            const studentHiddenInput = document.getElementById('kartuAbsensiStudentId');
+            const ownerHiddenInput = document.getElementById('kartuAbsensiOwnerTarget');
             const submitButton = document.getElementById('kartuAbsensiSubmitButton');
 
             const code = String(codeInput?.value || '').trim().toUpperCase();
-            const studentSearchValue = String(studentSearchInput?.value || '').trim();
-            const studentValue = String(studentHiddenInput?.value || '').trim();
-            const siswaId = studentValue === '' ? null : Number(studentValue);
+            const ownerTarget = String(ownerHiddenInput?.value || '').trim();
             const isEdit = cardId !== null && cardId !== undefined;
 
             if (!isEdit && code === '') {
                 setFormError('Kode kartu wajib diisi.');
-                return;
-            }
-
-            if (studentSearchValue !== '' && studentValue === '') {
-                setFormError('Pilih siswa dari dropdown atau kosongkan field pencarian.');
-                return;
-            }
-
-            if (studentValue !== '' && (!Number.isFinite(siswaId) || siswaId <= 0)) {
-                setFormError('Siswa yang dipilih tidak valid.');
                 return;
             }
 
@@ -646,7 +645,7 @@
 
             try {
                 const payload = {
-                    siswa_id: siswaId,
+                    owner_target: ownerTarget,
                 };
 
                 if (!isEdit) {
@@ -672,7 +671,7 @@
                     submitButton.innerHTML = originalButtonHtml;
                 }
             }
-        }
+        };
 
         async function deleteKartuAbsensi(cardId) {
             const response = await apiRequest(getItemUrl(cardId), {
@@ -684,7 +683,7 @@
             showAlert('success', response?.message || 'Kartu absensi dihapus.');
         }
 
-        function confirmDeleteKartuAbsensi(cardId) {
+        window.confirmDeleteKartuAbsensi = function (cardId) {
             const card = cardRecords.find((item) => Number(item.id) === Number(cardId)) || null;
             if (!card) {
                 showAlert('error', 'Data kartu tidak ditemukan.');
@@ -702,7 +701,7 @@
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     title: 'Hapus kartu?',
-                    html: `Kode <b>${escapeHtml(card.code)}</b> akan dihapus.`,
+                    html: `Kode <b>${escapeHtml(card.code)}</b> akan dihapus dan dilepas tautannya.`,
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#dc2626',
@@ -720,219 +719,76 @@
             if (window.confirm(`Hapus kartu ${card.code}?`)) {
                 handleDelete();
             }
-        }
+        };
 
-        function toggleKartuAbsensiCreatePanel() {
-            showAddKartuAbsensiModal();
-        }
-
-        function stopKartuAbsensiAutoRefresh() {
-            if (autoRefreshTimerId === null) {
-                return;
-            }
-
-            window.clearInterval(autoRefreshTimerId);
-            autoRefreshTimerId = null;
-        }
-
-        async function loadKartuAbsensiData(options = {}) {
-            const {
-                showToast = false,
-                triggerButton = null,
-                showLoading = true,
-            } = options;
-
-            if (state.isRefreshing) {
-                return;
-            }
-
-            state.isRefreshing = true;
-
-            const button = triggerButton instanceof HTMLElement ? triggerButton : null;
-            const icon = button ? button.querySelector('i') : null;
-
-            if (button) {
-                button.disabled = true;
-                button.classList.add('opacity-75', 'cursor-not-allowed');
-            }
-
-            if (icon) {
-                icon.classList.add('fa-spin');
-            }
-
-            if (showLoading) {
-                renderKartuAbsensiLoading();
-            }
-
-            try {
-                const response = await apiRequest(dataUrl);
-                applyServerData(response?.data || {});
-                renderKartuAbsensiTable();
-                stampKartuAbsensiSyncStatus();
-
-                if (showToast) {
-                    showAlert('success', 'Data kartu absensi diperbarui.');
-                }
-            } finally {
-                state.isRefreshing = false;
-
-                if (icon) {
-                    icon.classList.remove('fa-spin');
-                }
-
-                if (button) {
-                    button.disabled = false;
-                    button.classList.remove('opacity-75', 'cursor-not-allowed');
-                }
-            }
-        }
-
-        async function refreshKartuAbsensiPage(triggerButton = null) {
-            try {
-                await loadKartuAbsensiData({
-                    showToast: true,
-                    triggerButton,
-                    showLoading: true,
-                });
-            } catch (error) {
-                renderKartuAbsensiTable();
-                showAlert('error', error?.message || 'Gagal memuat ulang data kartu absensi.');
-            }
-        }
-
-        async function runKartuAbsensiAutoRefresh() {
-            if (!getView() || document.hidden) {
-                return;
-            }
-
-            try {
-                await loadKartuAbsensiData({
-                    showLoading: false,
-                });
-            } catch (error) {
-                updateKartuAbsensiAutoRefreshStatus('Auto refresh tertunda');
-            }
-        }
-
-        function startKartuAbsensiAutoRefresh() {
-            stopKartuAbsensiAutoRefresh();
-
-            autoRefreshTimerId = window.setInterval(runKartuAbsensiAutoRefresh, AUTO_REFRESH_INTERVAL_MS);
-        }
-
-        function disconnectKartuAbsensiStream() {
-            if (!kartuAbsensiEventSource) {
-                return;
-            }
-
-            kartuAbsensiEventSource.close();
-            kartuAbsensiEventSource = null;
-        }
-
-        function handleKartuAbsensiStreamSync(event) {
-            try {
-                const payload = JSON.parse(String(event?.data || '{}'));
-                applyServerData(payload);
-                renderKartuAbsensiTable();
-                stampKartuAbsensiSyncStatus();
-            } catch (error) {
-                updateKartuAbsensiAutoRefreshStatus('Data realtime tidak valid', 'fa-sync-alt');
-                startKartuAbsensiAutoRefresh();
-            }
-        }
-
-        function connectKartuAbsensiStream() {
-            if (!getView() || document.hidden) {
-                return;
-            }
-
-            if (typeof EventSource === 'undefined' || !streamUrl) {
-                updateKartuAbsensiAutoRefreshStatus(`Browser tidak mendukung SSE, auto refresh ${Math.round(AUTO_REFRESH_INTERVAL_MS / 1000)} detik`, 'fa-sync-alt');
-                startKartuAbsensiAutoRefresh();
-                return;
-            }
-
-            if (kartuAbsensiEventSource) {
-                return;
-            }
-
-            updateKartuAbsensiAutoRefreshStatus('Menghubungkan realtime...', 'fa-circle-notch fa-spin');
-
-            const eventSource = new EventSource(streamUrl);
-            kartuAbsensiEventSource = eventSource;
-
-            eventSource.addEventListener('open', function () {
-                stopKartuAbsensiAutoRefresh();
-                updateKartuAbsensiAutoRefreshStatus('Realtime tersambung', 'fa-wifi');
-            });
-
-            eventSource.addEventListener('sync', handleKartuAbsensiStreamSync);
-
-            eventSource.onerror = function () {
-                if (kartuAbsensiEventSource !== eventSource) {
-                    return;
-                }
-
-                updateKartuAbsensiAutoRefreshStatus(`Koneksi realtime terganggu, fallback ${Math.round(AUTO_REFRESH_INTERVAL_MS / 1000)} detik`, 'fa-sync-alt');
-                startKartuAbsensiAutoRefresh();
-            };
-        }
-
-        function handleKartuAbsensiLimit(value) {
-            state.limit = value === 'all' ? Infinity : Math.max(1, parseInt(value, 10) || 10);
-            state.page = 1;
-            renderKartuAbsensiTable();
-        }
-
-        function handleKartuAbsensiStatusFilter(value) {
-            state.status = value;
-            state.page = 1;
-            renderKartuAbsensiTable();
-        }
-
-        function handleKartuAbsensiSearch(value) {
+        window.handleKartuAbsensiSearch = function (value) {
             state.search = value;
             state.page = 1;
             renderKartuAbsensiTable();
-        }
+        };
 
-        function changeKartuAbsensiPage(direction) {
-            state.page += Number(direction) || 0;
+        window.handleKartuAbsensiStatusFilter = function (value) {
+            state.status = value;
+            state.page = 1;
             renderKartuAbsensiTable();
-        }
+        };
 
-        window.showAddKartuAbsensiModal = showAddKartuAbsensiModal;
-        window.showEditKartuAbsensiModal = showEditKartuAbsensiModal;
-        window.openKartuAbsensiStudentDropdown = openKartuAbsensiStudentDropdown;
-        window.filterKartuAbsensiStudentDropdown = filterKartuAbsensiStudentDropdown;
-        window.selectKartuAbsensiStudent = selectKartuAbsensiStudent;
-        window.closeKartuAbsensiStudentDropdown = closeKartuAbsensiStudentDropdown;
-        window.submitKartuAbsensiForm = submitKartuAbsensiForm;
-        window.confirmDeleteKartuAbsensi = confirmDeleteKartuAbsensi;
-        window.closeKartuAbsensiModal = closeKartuAbsensiModal;
-        window.toggleKartuAbsensiCreatePanel = toggleKartuAbsensiCreatePanel;
-        window.refreshKartuAbsensiPage = refreshKartuAbsensiPage;
-        window.handleKartuAbsensiLimit = handleKartuAbsensiLimit;
-        window.handleKartuAbsensiStatusFilter = handleKartuAbsensiStatusFilter;
-        window.handleKartuAbsensiSearch = handleKartuAbsensiSearch;
-        window.changeKartuAbsensiPage = changeKartuAbsensiPage;
+        window.handleKartuAbsensiLimit = function (value) {
+            state.limit = value === 'all' ? Infinity : Number(value);
+            state.page = 1;
+            renderKartuAbsensiTable();
+        };
 
-        document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                disconnectKartuAbsensiStream();
-                stopKartuAbsensiAutoRefresh();
-                updateKartuAbsensiAutoRefreshStatus('Realtime dijeda', 'fa-pause');
-                return;
+        window.changeKartuAbsensiPage = function (delta) {
+            state.page += delta;
+            renderKartuAbsensiTable();
+        };
+
+        window.refreshKartuAbsensiPage = async function (button = null) {
+            if (button) {
+                button.disabled = true;
+                button.classList.add('opacity-75');
             }
 
-            connectKartuAbsensiStream();
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            if (getView()) {
+            try {
+                const response = await apiRequest(dataUrl, { method: 'GET' });
+                applyServerData(response?.data || {});
                 renderKartuAbsensiTable();
-                connectKartuAbsensiStream();
+                stampKartuAbsensiSyncStatus();
+                showAlert('success', 'Data kartu absensi berhasil diperbarui.');
+            } catch (error) {
+                showAlert('error', error?.message || 'Gagal memperbarui data.');
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('opacity-75');
+                }
             }
-        });
+        };
+
+        window.closeKartuAbsensiModal = closeKartuAbsensiModal;
+
+        // Inisialisasi awal render
+        renderKartuAbsensiTable();
+        stampKartuAbsensiSyncStatus();
+
+        // Realtime SSE
+        if (typeof EventSource !== 'undefined' && streamUrl) {
+            try {
+                kartuAbsensiEventSource = new EventSource(streamUrl);
+                kartuAbsensiEventSource.addEventListener('sync', function (event) {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        applyServerData(payload);
+                        renderKartuAbsensiTable();
+                        stampKartuAbsensiSyncStatus();
+                    } catch (e) {
+                        console.error('SSE sync parse error:', e);
+                    }
+                });
+            } catch (err) {
+                console.warn('Realtime SSE not available, falling back to polling:', err);
+            }
+        }
     })();
 </script>

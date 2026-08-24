@@ -8,7 +8,7 @@
         <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/30">
             <div>
                 <h3 class="font-bold text-sm text-gray-800">Kartu Absensi</h3>
-                <p class="text-xs text-gray-500">Kelola daftar kartu fisik, tautkan ke siswa, dan pantau scan terakhir.</p>
+                <p class="text-xs text-gray-500">Kelola daftar kartu fisik RFID, tautkan ke Siswa atau Guru & Staf, dan pantau aktivitas scan.</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap justify-end">
                 <span id="kartu-absensi-auto-refresh-status" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 border border-emerald-100">
@@ -45,27 +45,40 @@
                 @csrf
 
                 <div class="lg:col-span-1">
-                    <label for="code" class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Kode Kartu</label>
+                    <label for="code" class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Kode Kartu / UID</label>
                     <input
                         id="code"
                         name="code"
                         type="text"
                         value="{{ old('code') }}"
                         class="w-full bg-white border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all font-mono uppercase"
-                        placeholder="Contoh: 04AABBCC"
+                        placeholder="Contoh: 3277946221"
                         required
                     >
                 </div>
 
                 <div class="lg:col-span-2">
-                    <label for="siswa_id" class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Tautkan ke Siswa</label>
-                    <select id="siswa_id" name="siswa_id" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all">
+                    <label for="owner_target" class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Tautkan ke Pemilik</label>
+                    <select id="owner_target" name="owner_target" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-all">
                         <option value="">Belum ditautkan</option>
-                        @foreach ($students as $student)
-                            <option value="{{ $student->id }}" {{ (string) old('siswa_id') === (string) $student->id ? 'selected' : '' }}>
-                                {{ $student->nama }} ({{ $student->nisn }}){{ $student->kelas ? ' - '.$student->kelas : '' }}
-                            </option>
-                        @endforeach
+                        @if(isset($teachers) && count($teachers) > 0)
+                            <optgroup label="--- GURU & STAF ---">
+                                @foreach ($teachers as $teacher)
+                                    <option value="guru_{{ $teacher->id }}" {{ old('owner_target') === 'guru_'.$teacher->id ? 'selected' : '' }}>
+                                        👨‍🏫 {{ $teacher->name }} ({{ $teacher->username }}) - {{ $teacher->jabatan ?: 'Guru / Staf' }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                        @if(isset($students) && count($students) > 0)
+                            <optgroup label="--- SISWA ---">
+                                @foreach ($students as $student)
+                                    <option value="siswa_{{ $student->id }}" {{ old('owner_target') === 'siswa_'.$student->id ? 'selected' : '' }}>
+                                        🎓 {{ $student->nama }} ({{ $student->nisn }}){{ $student->kelas ? ' - '.$student->kelas : '' }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
                     </select>
                 </div>
 
@@ -110,8 +123,8 @@
                     <tr>
                         <th class="p-3 text-center w-12">No</th>
                         <th class="p-3">Kode Kartu</th>
-                        <th class="p-3">Siswa</th>
-                        <th class="p-3 hidden md:table-cell">Kelas</th>
+                        <th class="p-3">Pemilik (Siswa / Guru)</th>
+                        <th class="p-3 hidden md:table-cell">Kelas / Jabatan</th>
                         <th class="p-3 hidden lg:table-cell">Scan Terakhir</th>
                         <th class="p-3 text-center w-32">Aksi</th>
                     </tr>
@@ -119,21 +132,29 @@
                 <tbody id="tbody-kartu-absensi" class="divide-y divide-gray-50 bg-white text-xs text-gray-700">
                     @forelse ($cards as $card)
                         @php
+                            $cardCode = strtoupper(trim((string)$card->code));
+                            $teacherOwner = $card->siswa_id ? null : ($teachersByCard[$cardCode] ?? null);
+                            $isLinked = ($card->siswa !== null) || ($teacherOwner !== null);
+                            $ownerType = $card->siswa ? 'siswa' : ($teacherOwner ? 'guru' : 'unlinked');
+                            $ownerName = $card->siswa ? $card->siswa->nama : ($teacherOwner ? $teacherOwner->name : null);
+                            $ownerId = $card->siswa ? $card->siswa->nisn : ($teacherOwner ? $teacherOwner->username : null);
+                            $ownerClass = $card->siswa ? $card->siswa->kelas : ($teacherOwner ? ($teacherOwner->jabatan ?: 'Guru & Staf') : '-');
+
                             $scanLabel = $card->last_scanned_at
                                 ? $card->last_scanned_at->format('d M Y H:i') . ' ' . ($card->last_scanned_source ?: 'unknown')
                                 : 'belum pernah discan';
                             $searchIndex = strtolower(trim(implode(' ', array_filter([
                                 $card->code,
-                                $card->siswa?->nama,
-                                $card->siswa?->nisn,
-                                $card->siswa?->kelas,
+                                $ownerName,
+                                $ownerId,
+                                $ownerClass,
                                 $scanLabel,
                             ]))));
                         @endphp
                         <tr
                             data-kartu-row
                             data-search="{{ $searchIndex }}"
-                            data-link-status="{{ $card->siswa_id ? 'linked' : 'unlinked' }}"
+                            data-link-status="{{ $isLinked ? 'linked' : 'unlinked' }}"
                             class="hover:bg-gray-50"
                         >
                             <td class="p-3 text-center text-gray-400 font-mono" data-row-number>1</td>
@@ -143,16 +164,25 @@
                             </td>
                             <td class="p-3 align-top">
                                 @if ($card->siswa)
-                                    <div class="font-semibold text-gray-900">{{ $card->siswa->nama }}</div>
+                                    <div class="font-semibold text-gray-900 flex items-center gap-1.5">
+                                        <span>{{ $card->siswa->nama }}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">SISWA</span>
+                                    </div>
                                     <div class="text-[11px] text-gray-500">{{ $card->siswa->nisn }}</div>
+                                @elseif ($teacherOwner)
+                                    <div class="font-semibold text-indigo-900 flex items-center gap-1.5">
+                                        <span>{{ $teacherOwner->name }}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">GURU & STAF</span>
+                                    </div>
+                                    <div class="text-[11px] text-gray-500">{{ $teacherOwner->username }}</div>
                                 @else
                                     <div class="font-semibold text-amber-700">Belum ditautkan</div>
                                     <div class="text-[11px] text-amber-600">Kartu belum punya pemilik</div>
                                 @endif
                             </td>
                             <td class="p-3 hidden md:table-cell align-top">
-                                <span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 text-[11px] font-semibold">
-                                    {{ $card->siswa?->kelas ?: '-' }}
+                                <span class="inline-flex items-center px-2 py-1 rounded {{ $ownerType === 'guru' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'bg-gray-100 text-gray-700 font-semibold' }} text-[11px]">
+                                    {{ $ownerClass }}
                                 </span>
                             </td>
                             <td class="p-3 hidden lg:table-cell align-top">
@@ -165,7 +195,7 @@
                             </td>
                             <td class="p-3 align-top text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button type="button" onclick="showEditKartuAbsensiModal({{ $card->id }})" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit">
+                                    <button type="button" onclick="showEditKartuAbsensiModal({{ $card->id }})" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit / Tautkan">
                                         <i class="fas fa-pen"></i>
                                     </button>
                                     <button type="button" onclick="confirmDeleteKartuAbsensi({{ $card->id }})" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus">

@@ -197,6 +197,14 @@ class StaffRecordService extends BaseActionService
             ]);
             $this->syncSpatieRoleForUser($user, 'wakel');
             $this->syncGuruClassBinding($user, $kelas, null);
+
+            if ($nomorKartu !== null && trim($nomorKartu) !== '') {
+                $cleanCard = strtoupper(trim($nomorKartu));
+                KartuAbsensi::query()->firstOrCreate(
+                    ['code' => $cleanCard, 'type' => KartuAbsensi::TYPE_RFID],
+                    ['siswa_id' => null]
+                );
+            }
         });
 
         return ['success' => true, 'message' => 'Akun guru berhasil ditambahkan.'];
@@ -310,6 +318,14 @@ class StaffRecordService extends BaseActionService
             $user->update($payload);
             $this->syncSpatieRoleForUser($user, 'wakel');
             $this->syncGuruClassBinding($user, $kelas, $previousKelas);
+
+            if ($nomorKartu !== null && trim($nomorKartu) !== '') {
+                $cleanCard = strtoupper(trim($nomorKartu));
+                KartuAbsensi::query()->firstOrCreate(
+                    ['code' => $cleanCard, 'type' => KartuAbsensi::TYPE_RFID],
+                    ['siswa_id' => null]
+                );
+            }
         });
 
         return ['success' => true, 'message' => 'Akun guru berhasil diperbarui.'];

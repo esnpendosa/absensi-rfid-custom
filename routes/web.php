@@ -95,13 +95,12 @@ Route::middleware('auth')->group(function () {
     Route::prefix('keuangan')
         ->name('keuangan.')
         ->group(function () {
-            Route::middleware('permission:keuangan.pos.manage')->group(function () {
-                Route::get('/pos', [KeuanganSekolahController::class, 'indexPos'])->name('pos.index');
-                Route::get('/pos/data', [KeuanganSekolahController::class, 'dataPos'])->name('pos.data');
-                Route::post('/pos', [KeuanganSekolahController::class, 'storePos'])->name('pos.store');
-                Route::put('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'updatePos'])->name('pos.update');
-                Route::delete('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'destroyPos'])->name('pos.destroy');
-            });
+            // Kategori Pos Keuangan (Hak akses dikontrol di level controller berdasarkan role)
+            Route::get('/pos', [KeuanganSekolahController::class, 'indexPos'])->name('pos.index');
+            Route::get('/pos/data', [KeuanganSekolahController::class, 'dataPos'])->name('pos.data');
+            Route::post('/pos', [KeuanganSekolahController::class, 'storePos'])->name('pos.store');
+            Route::put('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'updatePos'])->name('pos.update');
+            Route::delete('/pos/{posKeuangan}', [KeuanganSekolahController::class, 'destroyPos'])->name('pos.destroy');
 
             Route::get('/pembayaran', [KeuanganSekolahController::class, 'indexPembayaran'])->name('pembayaran.index');
             Route::get('/pembayaran/data', [KeuanganSekolahController::class, 'dataPembayaran'])->name('pembayaran.data');

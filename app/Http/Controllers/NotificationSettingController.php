@@ -87,6 +87,8 @@ class NotificationSettingController extends Controller
             'wa_template_izin_sakit_reviewer_wakel' => ['nullable', 'string', 'max:2000'],
             'wa_template_izin_sakit_reviewer_admin' => ['nullable', 'string', 'max:2000'],
             'wa_template_forgot_password_otp' => ['nullable', 'string', 'max:2000'],
+            'wa_template_pembayaran_lunas' => ['nullable', 'string', 'max:2000'],
+            'wa_template_pembayaran_cicilan' => ['nullable', 'string', 'max:2000'],
             'telegram_action' => ['nullable', 'in:reapply_webhook,reset_token'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_template_hadir' => ['nullable', 'string', 'max:2000'],
@@ -216,6 +218,8 @@ class NotificationSettingController extends Controller
             'wa_template_izin_sakit_reviewer_wakel' => $this->normalizeNullableString($validated['wa_template_izin_sakit_reviewer_wakel'] ?? null),
             'wa_template_izin_sakit_reviewer_admin' => $this->normalizeNullableString($validated['wa_template_izin_sakit_reviewer_admin'] ?? null),
             'wa_template_forgot_password_otp' => $this->normalizeNullableString($validated['wa_template_forgot_password_otp'] ?? null),
+            'wa_template_pembayaran_lunas' => $this->normalizeNullableString($validated['wa_template_pembayaran_lunas'] ?? null),
+            'wa_template_pembayaran_cicilan' => $this->normalizeNullableString($validated['wa_template_pembayaran_cicilan'] ?? null),
         ];
 
         $telegramSettings = $telegramBotService->getSettings(true);
@@ -665,6 +669,8 @@ class NotificationSettingController extends Controller
             'wa_template_izin_sakit_reviewer_wakel' => 'Halo {recipient_name}, ada pengajuan {jenis} baru dari {siswa_nama} (kelas {kelas}) untuk {rentang_tanggal}. Alasan: {alasan}. Mohon ditinjau.',
             'wa_template_izin_sakit_reviewer_admin' => 'Halo {recipient_name}, ada pengajuan {jenis} baru dari {siswa_nama} (kelas {kelas}) untuk {rentang_tanggal}. Alasan: {alasan}. Mohon ditinjau.',
             'wa_template_forgot_password_otp' => "Halo {nama},\n\nKode OTP untuk reset password akun {username} adalah *{otp_code}*.\nKode berlaku {otp_expired_minutes} menit.\nWaktu permintaan: {otp_request_time}.\n\nJangan berikan kode ini kepada siapa pun.",
+            'wa_template_pembayaran_lunas' => "✅ *BUKTI PEMBAYARAN RESMI*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nJumlah Bayar : *{jumlah_bayar}*\nMetode       : {metode}\nSisa Tagihan : *✅ LUNAS*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._",
+            'wa_template_pembayaran_cicilan' => "⚠️ *BUKTI PEMBAYARAN (CICILAN)*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nTotal Tagihan: *{total_tagihan}*\nSudah Dibayar: {sudah_dibayar}\nBayar Kali Ini: *{jumlah_bayar}*\nMetode       : {metode}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔴 *Sisa Tagihan : {sisa_tagihan}*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n⚠️ _Harap segera melunasi sisa tagihan sebesar *{sisa_tagihan}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._",
         ];
 
         $legacyMap = [

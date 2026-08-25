@@ -473,47 +473,37 @@ class KeuanganSekolahController extends Controller
                 $notaUrl     = url('/keuangan/kuitansi/' . $transaksi->id);
                 $isLunas     = $tagihan->sisa <= 0;
 
+                $sisaStr     = $isLunas ? '✅ LUNAS' : ('Rp ' . number_format($tagihan->sisa, 0, ',', '.'));
+
+                $replacements = [
+                    '{nama_siswa}'   => (string) ($siswa->nama ?? ''),
+                    '{nama}'         => (string) ($siswa->nama ?? ''),
+                    '{nisn}'         => (string) ($siswa->nisn ?? '-'),
+                    '{kelas}'        => (string) ($siswa->kelas ?? '-'),
+                    '{no_nota}'      => (string) $transaksi->nomor_transaksi,
+                    '{tanggal}'      => Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y'),
+                    '{jenis_bayar}'  => $posNama,
+                    '{jumlah_bayar}' => $nominalStr,
+                    '{metode}'       => (string) $transaksi->metode_pembayaran,
+                    '{total_tagihan}'=> $totalStr,
+                    '{sudah_dibayar}'=> $terbayarStr,
+                    '{sisa_tagihan}' => $sisaStr,
+                    '{nota_url}'     => $notaUrl,
+                ];
+
                 if ($isLunas) {
-                    // ============ PESAN LUNAS ============
-                    $pesan = "✅ *BUKTI PEMBAYARAN RESMI*\n"
-                           . "*SMK NURUL HIDAYAH*\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "No. Nota     : {$transaksi->nomor_transaksi}\n"
-                           . "Nama Siswa   : {$siswa->nama}\n"
-                           . "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n"
-                           . "Tanggal      : " . Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "Jenis Bayar  : {$posNama}\n"
-                           . "Jumlah Bayar : *{$nominalStr}*\n"
-                           . "Metode       : {$transaksi->metode_pembayaran}\n"
-                           . "Sisa Tagihan : *✅ LUNAS*\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "📄 *Lihat / Unduh Nota Struk Digital:*\n"
-                           . "{$notaUrl}\n\n"
-                           . "_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                    $template = trim((string) ($settings['wa_template_pembayaran_lunas'] ?? ''));
+                    if ($template === '') {
+                        $template = "✅ *BUKTI PEMBAYARAN RESMI*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nJumlah Bayar : *{jumlah_bayar}*\nMetode       : {metode}\nSisa Tagihan : *✅ LUNAS*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                    }
                 } else {
-                    // ============ PESAN CICILAN / KURANG BAYAR ============
-                    $sisaStr = 'Rp ' . number_format($tagihan->sisa, 0, ',', '.');
-                    $pesan = "⚠️ *BUKTI PEMBAYARAN (CICILAN)*\n"
-                           . "*SMK NURUL HIDAYAH*\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "No. Nota     : {$transaksi->nomor_transaksi}\n"
-                           . "Nama Siswa   : {$siswa->nama}\n"
-                           . "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n"
-                           . "Tanggal      : " . Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "Jenis Bayar  : {$posNama}\n"
-                           . "Total Tagihan: *{$totalStr}*\n"
-                           . "Sudah Dibayar: {$terbayarStr}\n"
-                           . "Bayar Kali Ini: *{$nominalStr}*\n"
-                           . "Metode       : {$transaksi->metode_pembayaran}\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "🔴 *Sisa Tagihan : {$sisaStr}*\n"
-                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "📄 *Lihat / Unduh Nota Struk Digital:*\n"
-                           . "{$notaUrl}\n\n"
-                           . "⚠️ _Harap segera melunasi sisa tagihan sebesar *{$sisaStr}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
+                    $template = trim((string) ($settings['wa_template_pembayaran_cicilan'] ?? ''));
+                    if ($template === '') {
+                        $template = "⚠️ *BUKTI PEMBAYARAN (CICILAN)*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nTotal Tagihan: *{total_tagihan}*\nSudah Dibayar: {sudah_dibayar}\nBayar Kali Ini: *{jumlah_bayar}*\nMetode       : {metode}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔴 *Sisa Tagihan : {sisa_tagihan}*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n⚠️ _Harap segera melunasi sisa tagihan sebesar *{sisa_tagihan}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
+                    }
                 }
+
+                $pesan = str_replace(array_keys($replacements), array_values($replacements), $template);
 
                 // Tentukan nomor penerima: siswa/wali berdasarkan konfigurasi target
                 $waTarget = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));

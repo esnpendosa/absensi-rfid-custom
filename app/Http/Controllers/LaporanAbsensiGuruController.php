@@ -28,4 +28,24 @@ class LaporanAbsensiGuruController extends PageActionController
     {
         return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->teacherAttendance->exportExcel($args, $auth));
     }
+
+    public function rekapBulanan(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->teacherAttendance->getRekapBulanan($args, $auth));
+    }
+
+    public function rekapTahunan(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->teacherAttendance->getRekapTahunan($args, $auth));
+    }
+
+    public function exportRekapBulanan(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->teacherAttendance->exportExcelRekapBulanan($args, $auth));
+    }
+
+    public function exportRekapTahunan(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->teacherAttendance->exportExcelRekapTahunan($args, $auth));
+    }
 }

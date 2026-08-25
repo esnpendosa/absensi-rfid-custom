@@ -173,6 +173,393 @@ class TeacherAttendanceService extends BaseActionService
     }
 
     /**
+     * Get monthly attendance recap (matriks per-date 1–31) for all teachers.
+     */
+    public function getRekapBulanan(array $args, $auth): array
+    {
+        $role = $this->getRoleFromAuth($auth);
+        if (!$auth || !in_array($role, ['admin', 'super-admin', 'kepsek', 'wakasek', 'wakel', 'piket', 'guru'], true)) {
+            return ['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'];
+        }
+
+        $bulan = (int) ($args[0] ?? Carbon::now()->month);
+        $tahun = (int) ($args[1] ?? Carbon::now()->year);
+        $search = trim((string) ($args[2] ?? ''));
+
+        $startDate = Carbon::create($tahun, $bulan, 1)->startOfDay();
+        $endDate = $startDate->copy()->endOfMonth();
+        $daysInMonth = $endDate->day;
+
+        // Get all active teachers (non-siswa)
+        $query = User::query()->whereDoesntHave('roles', fn ($q) => $q->where('name', 'siswa'))->orderBy('name');
+        if ($search !== '') {
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('jabatan', 'like', "%{$search}%")->orWhere('username', 'like', "%{$search}%"));
+        }
+        $teachers = $query->get();
+
+        // Bulk load attendance for the month
+        $absensiRaw = AbsensiGuru::query()
+            ->whereBetween('tanggal', [$startDate->toDateString(), $endDate->toDateString()])
+            ->get()
+            ->groupBy('user_id');
+
+        $statusBadge = [
+            'Hadir' => 'H',
+            'Masuk' => 'H',
+            'Terlambat' => 'TL',
+            'Izin' => 'I',
+            'Sakit' => 'S',
+            'Alpa' => 'A',
+            'Pulang Cepat' => 'PC',
+            'Pulang' => 'H',
+        ];
+
+        $rows = [];
+        $totalHadir = 0; $totalTelat = 0; $totalIzin = 0; $totalSakit = 0; $totalAlpa = 0;
+        $totalTeacherDays = 0;
+
+        foreach ($teachers as $t) {
+            $absMap = collect($absensiRaw->get($t->id, []))->keyBy(fn ($r) => Carbon::parse($r->tanggal)->day);
+            $harian = [];
+            $tHadir = 0; $tTelat = 0; $tIzin = 0; $tSakit = 0; $tAlpa = 0; $tPulangCepat = 0;
+
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $abs = $absMap->get($d);
+                if ($abs) {
+                    $st = $abs->status ?? 'Hadir';
+                    $ket = $abs->keterangan ?? '';
+                    $code = match (true) {
+                        $st === 'Izin' => 'I',
+                        $st === 'Sakit' => 'S',
+                        $st === 'Alpa' => 'A',
+                        stripos($ket, 'terlambat') !== false => 'TL',
+                        stripos($ket, 'pulang cepat') !== false => 'PC',
+                        default => 'H',
+                    };
+
+                    if ($code === 'H' || $code === 'TL' || $code === 'PC') $tHadir++;
+                    if ($code === 'TL') $tTelat++;
+                    if ($code === 'I') $tIzin++;
+                    if ($code === 'S') $tSakit++;
+                    if ($code === 'A') $tAlpa++;
+                    if ($code === 'PC') $tPulangCepat++;
+
+                    $harian[$d] = ['code' => $code, 'jam_datang' => $abs->jam_datang, 'jam_pulang' => $abs->jam_pulang];
+                } else {
+                    $harian[$d] = null;
+                }
+            }
+
+            $totalDays = $tHadir + $tIzin + $tSakit + $tAlpa;
+            $persen = $totalDays > 0 ? round(($tHadir / max(1, $totalDays)) * 100, 1) : 0;
+
+            $totalHadir += $tHadir; $totalTelat += $tTelat;
+            $totalIzin += $tIzin; $totalSakit += $tSakit; $totalAlpa += $tAlpa;
+            $totalTeacherDays += $totalDays;
+
+            $rows[] = [
+                'user_id' => $t->id,
+                'nama' => $t->name,
+                'username' => $t->username,
+                'jabatan' => $t->jabatan ?: ($t->kelas ?: 'Guru / Staf'),
+                'harian' => $harian,
+                'total_hadir' => $tHadir,
+                'total_telat' => $tTelat,
+                'total_izin' => $tIzin,
+                'total_sakit' => $tSakit,
+                'total_alpa' => $tAlpa,
+                'total_pulang_cepat' => $tPulangCepat,
+                'persen_kehadiran' => $persen,
+            ];
+        }
+
+        $overallPersen = $totalTeacherDays > 0 ? round(($totalHadir / max(1, $totalTeacherDays)) * 100, 1) : 0;
+
+        return [
+            'success' => true,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'bulan_label' => Carbon::create($tahun, $bulan, 1)->locale('id')->translatedFormat('F Y'),
+            'days_in_month' => $daysInMonth,
+            'summary' => [
+                'total_guru' => count($rows),
+                'total_hadir' => $totalHadir,
+                'total_telat' => $totalTelat,
+                'total_izin' => $totalIzin,
+                'total_sakit' => $totalSakit,
+                'total_alpa' => $totalAlpa,
+                'persen_kehadiran' => $overallPersen,
+            ],
+            'data' => $rows,
+        ];
+    }
+
+    /**
+     * Get yearly attendance recap (12-month summary) for all teachers.
+     */
+    public function getRekapTahunan(array $args, $auth): array
+    {
+        $role = $this->getRoleFromAuth($auth);
+        if (!$auth || !in_array($role, ['admin', 'super-admin', 'kepsek', 'wakasek', 'wakel', 'piket', 'guru'], true)) {
+            return ['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'];
+        }
+
+        $tahun = (int) ($args[0] ?? Carbon::now()->year);
+        $search = trim((string) ($args[1] ?? ''));
+
+        $startDate = Carbon::create($tahun, 1, 1)->startOfDay()->toDateString();
+        $endDate = Carbon::create($tahun, 12, 31)->endOfDay()->toDateString();
+
+        $query = User::query()->whereDoesntHave('roles', fn ($q) => $q->where('name', 'siswa'))->orderBy('name');
+        if ($search !== '') {
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('jabatan', 'like', "%{$search}%")->orWhere('username', 'like', "%{$search}%"));
+        }
+        $teachers = $query->get();
+
+        // Bulk load all attendance for the year
+        $absensiRaw = AbsensiGuru::query()
+            ->whereBetween('tanggal', [$startDate, $endDate])
+            ->get()
+            ->groupBy('user_id');
+
+        $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        $rows = [];
+        foreach ($teachers as $t) {
+            $absForTeacher = collect($absensiRaw->get($t->id, []));
+
+            $bulanan = [];
+            $totalHadir = 0; $totalTelat = 0; $totalIzin = 0; $totalSakit = 0; $totalAlpa = 0;
+
+            for ($m = 1; $m <= 12; $m++) {
+                $absMonth = $absForTeacher->filter(fn ($r) => Carbon::parse($r->tanggal)->month === $m);
+                $h = 0; $tl = 0; $i = 0; $s = 0; $a = 0;
+                foreach ($absMonth as $abs) {
+                    $st = $abs->status ?? 'Hadir';
+                    $ket = $abs->keterangan ?? '';
+                    if ($st === 'Izin') { $i++; }
+                    elseif ($st === 'Sakit') { $s++; }
+                    elseif ($st === 'Alpa') { $a++; }
+                    else {
+                        $h++;
+                        if (stripos($ket, 'terlambat') !== false) $tl++;
+                    }
+                }
+                $monthDays = $h + $i + $s + $a;
+                $persen = $monthDays > 0 ? round(($h / max(1, $monthDays)) * 100, 1) : 0;
+                $bulanan[$m] = ['hadir' => $h, 'telat' => $tl, 'izin' => $i, 'sakit' => $s, 'alpa' => $a, 'persen' => $persen, 'label' => $namaBulan[$m]];
+                $totalHadir += $h; $totalTelat += $tl; $totalIzin += $i; $totalSakit += $s; $totalAlpa += $a;
+            }
+
+            $totalDays = $totalHadir + $totalIzin + $totalSakit + $totalAlpa;
+            $persen = $totalDays > 0 ? round(($totalHadir / max(1, $totalDays)) * 100, 1) : 0;
+
+            $rows[] = [
+                'user_id' => $t->id,
+                'nama' => $t->name,
+                'username' => $t->username,
+                'jabatan' => $t->jabatan ?: ($t->kelas ?: 'Guru / Staf'),
+                'bulanan' => $bulanan,
+                'total_hadir' => $totalHadir,
+                'total_telat' => $totalTelat,
+                'total_izin' => $totalIzin,
+                'total_sakit' => $totalSakit,
+                'total_alpa' => $totalAlpa,
+                'persen_kehadiran' => $persen,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'tahun' => $tahun,
+            'summary' => [
+                'total_guru' => count($rows),
+            ],
+            'data' => $rows,
+        ];
+    }
+
+    /**
+     * Export monthly recap to Excel (matrix format).
+     */
+    public function exportExcelRekapBulanan(array $args, $auth): array
+    {
+        $result = $this->getRekapBulanan($args, $auth);
+        if (!($result['success'] ?? false)) return $result;
+
+        $bulanLabel = $result['bulan_label'];
+        $daysInMonth = $result['days_in_month'];
+        $rows = $result['data'];
+        $bulan = $result['bulan'];
+        $tahun = $result['tahun'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap Bulanan');
+
+        // Title
+        $sheet->setCellValue('A1', 'REKAP ABSENSI GURU & STAF');
+        $sheet->setCellValue('A2', 'Bulan: ' . strtoupper($bulanLabel));
+
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(7 + $daysInMonth);
+        $sheet->mergeCells('A1:' . $lastCol . '1');
+        $sheet->mergeCells('A2:' . $lastCol . '2');
+        $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(13);
+        $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Headers
+        $baseHeaders = ['No', 'Nama Guru / Staf', 'NIP / Username', 'Jabatan'];
+        $row = 4;
+        $col = 1;
+        foreach ($baseHeaders as $h) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+        }
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $d);
+        }
+        $summaryHeaders = ['Hadir', 'Telat', 'Izin', 'Sakit', 'Alpa', '%'];
+        foreach ($summaryHeaders as $h) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+        }
+
+        $totalCols = 4 + $daysInMonth + 6;
+        $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E3A8A');
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Data rows
+        $row = 5;
+        $no = 1;
+        foreach ($rows as $r) {
+            $col = 1;
+            $sheet->setCellValueByColumnAndRow($col++, $row, $no++);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['nama']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['username']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['jabatan']);
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $val = $r['harian'][$d]['code'] ?? '-';
+                $sheet->setCellValueByColumnAndRow($col++, $row, $val);
+            }
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_hadir']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_telat']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_izin']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_sakit']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_alpa']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['persen_kehadiran'] . '%');
+
+            if ($row % 2 === 0) {
+                $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
+            }
+            $row++;
+        }
+
+        // Auto width for key columns
+        $sheet->getColumnDimension('B')->setWidth(28);
+        $sheet->getColumnDimension('C')->setWidth(16);
+        $sheet->getColumnDimension('D')->setWidth(20);
+        for ($c = 5; $c <= 4 + $daysInMonth; $c++) {
+            $sheet->getColumnDimensionByColumn($c)->setWidth(5);
+        }
+
+        // Borders
+        $sheet->getStyle('A4:' . $lastColLetter . ($row - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFCBD5E1']]],
+        ]);
+
+        // Save
+        $filename = 'Rekap_Bulanan_Guru_' . $bulan . '_' . $tahun . '_' . date('Ymd_His') . '.xlsx';
+        $path = storage_path('app/public/exports/' . $filename);
+        if (!file_exists(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($path);
+
+        return ['success' => true, 'url' => '/storage/exports/' . $filename, 'filename' => $filename];
+    }
+
+    /**
+     * Export yearly recap to Excel (12-month summary).
+     */
+    public function exportExcelRekapTahunan(array $args, $auth): array
+    {
+        $result = $this->getRekapTahunan($args, $auth);
+        if (!($result['success'] ?? false)) return $result;
+
+        $tahun = $result['tahun'];
+        $rows = $result['data'];
+        $namaBulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap Tahunan');
+
+        $sheet->setCellValue('A1', 'REKAP ABSENSI TAHUNAN GURU & STAF');
+        $sheet->setCellValue('A2', 'Tahun: ' . $tahun);
+        $sheet->mergeCells('A1:V1');
+        $sheet->mergeCells('A2:V2');
+        $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(13);
+        $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Headers
+        $row = 4; $col = 1;
+        foreach (['No', 'Nama Guru / Staf', 'NIP / Username', 'Jabatan'] as $h) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+        }
+        foreach ($namaBulan as $bln) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $bln);
+        }
+        foreach (['Total Hadir', 'Total Telat', 'Total Izin', 'Total Sakit', 'Total Alpa', '% Hadir'] as $h) {
+            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+        }
+        $totalCols = 4 + 12 + 6;
+        $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E3A8A');
+        $sheet->getStyle('A4:' . $lastColLetter . '4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $row = 5; $no = 1;
+        foreach ($rows as $r) {
+            $col = 1;
+            $sheet->setCellValueByColumnAndRow($col++, $row, $no++);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['nama']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['username']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['jabatan']);
+            for ($m = 1; $m <= 12; $m++) {
+                $b = $r['bulanan'][$m] ?? [];
+                $sheet->setCellValueByColumnAndRow($col++, $row, ($b['hadir'] ?? 0));
+            }
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_hadir']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_telat']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_izin']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_sakit']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_alpa']);
+            $sheet->setCellValueByColumnAndRow($col++, $row, $r['persen_kehadiran'] . '%');
+
+            if ($row % 2 === 0) {
+                $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
+            }
+            $row++;
+        }
+
+        $sheet->getColumnDimension('B')->setWidth(28);
+        $sheet->getColumnDimension('C')->setWidth(16);
+        $sheet->getColumnDimension('D')->setWidth(20);
+        $sheet->getStyle('A4:' . $lastColLetter . ($row - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFCBD5E1']]],
+        ]);
+
+        $filename = 'Rekap_Tahunan_Guru_' . $tahun . '_' . date('Ymd_His') . '.xlsx';
+        $path = storage_path('app/public/exports/' . $filename);
+        if (!file_exists(dirname($path))) mkdir(dirname($path), 0755, true);
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($path);
+
+        return ['success' => true, 'url' => '/storage/exports/' . $filename, 'filename' => $filename];
+    }
+
+    /**
      * Get Realtime Monitoring for Teachers.
      */
     public function getMonitoringRealtime(array $args, $auth): array

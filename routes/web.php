@@ -287,6 +287,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan-absensi-guru', [LaporanAbsensiGuruController::class, 'index'])->name('laporan-absensi-guru');
     Route::post('/laporan-absensi-guru/list', [LaporanAbsensiGuruController::class, 'list'])->name('laporan-absensi-guru.list');
     Route::post('/laporan-absensi-guru/export-excel', [LaporanAbsensiGuruController::class, 'exportExcel'])->name('laporan-absensi-guru.export-excel');
+    Route::post('/laporan-absensi-guru/rekap-bulanan', [LaporanAbsensiGuruController::class, 'rekapBulanan'])->name('laporan-absensi-guru.rekap-bulanan');
+    Route::post('/laporan-absensi-guru/rekap-tahunan', [LaporanAbsensiGuruController::class, 'rekapTahunan'])->name('laporan-absensi-guru.rekap-tahunan');
+    Route::post('/laporan-absensi-guru/export-rekap-bulanan', [LaporanAbsensiGuruController::class, 'exportRekapBulanan'])->name('laporan-absensi-guru.export-rekap-bulanan');
+    Route::post('/laporan-absensi-guru/export-rekap-tahunan', [LaporanAbsensiGuruController::class, 'exportRekapTahunan'])->name('laporan-absensi-guru.export-rekap-tahunan');
 
     Route::get('/rekap-bulanan', [RekapBulananController::class, 'index'])->middleware('permission:rekap-bulanan.view')->name('rekap-bulanan');
     Route::get('/rekap-tahunan', [RekapTahunanController::class, 'index'])->middleware('permission:rekap-tahunan.view')->name('rekap-tahunan');

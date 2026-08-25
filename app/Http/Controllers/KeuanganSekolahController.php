@@ -458,34 +458,83 @@ class KeuanganSekolahController extends Controller
             return $trx;
         });
 
-        // Kirim notifikasi WhatsApp otomatis ke nomor siswa
+        // Kirim notifikasi WhatsApp otomatis ke nomor siswa/wali
         try {
             $siswa = $tagihan->siswa;
             if ($siswa && !empty($siswa->no_hp)) {
                 $waService = app(\App\Services\WaGatewayService::class);
-                $nominalStr = 'Rp ' . number_format($transaksi->nominal_bayar, 0, ',', '.');
-                $posNama = ($tagihan->posKeuangan->nama ?? 'Keuangan') . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '');
-                $sisaStr = $tagihan->sisa <= 0 ? 'LUNAS' : ('Rp ' . number_format($tagihan->sisa, 0, ',', '.'));
-                $notaUrl = url('/keuangan/kuitansi/' . $transaksi->id);
+                $settings  = $waService->getSettings();
+                $provider  = (string) ($settings['wa_gateway_provider'] ?? '');
 
-                $pesan = "*BUKTI PEMBAYARAN RESMI*\n"
-                       . "*SMK NURUL HIDAYAH*\n"
-                       . "------------------------------------\n"
-                       . "No. Nota     : {$transaksi->nomor_transaksi}\n"
-                       . "Nama Siswa   : {$siswa->nama}\n"
-                       . "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n"
-                       . "Tanggal      : " . Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n"
-                       . "------------------------------------\n"
-                       . "Jenis Bayar  : {$posNama}\n"
-                       . "Jumlah Bayar : *{$nominalStr}*\n"
-                       . "Metode       : {$transaksi->metode_pembayaran}\n"
-                       . "Sisa Tagihan : *{$sisaStr}*\n"
-                       . "------------------------------------\n"
-                       . "📄 *Lihat / Unduh Nota Struk Digital:*\n"
-                       . "{$notaUrl}\n\n"
-                       . "_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                $nominalStr  = 'Rp ' . number_format($transaksi->nominal_bayar, 0, ',', '.');
+                $totalStr    = 'Rp ' . number_format($tagihan->nominal, 0, ',', '.');
+                $terbayarStr = 'Rp ' . number_format($tagihan->terbayar, 0, ',', '.');
+                $posNama     = ($tagihan->posKeuangan->nama ?? 'Keuangan') . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '');
+                $notaUrl     = url('/keuangan/kuitansi/' . $transaksi->id);
+                $isLunas     = $tagihan->sisa <= 0;
 
-                $waService->sendCustomMessage($siswa->no_hp, $pesan);
+                if ($isLunas) {
+                    // ============ PESAN LUNAS ============
+                    $pesan = "✅ *BUKTI PEMBAYARAN RESMI*\n"
+                           . "*SMK NURUL HIDAYAH*\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "No. Nota     : {$transaksi->nomor_transaksi}\n"
+                           . "Nama Siswa   : {$siswa->nama}\n"
+                           . "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n"
+                           . "Tanggal      : " . Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "Jenis Bayar  : {$posNama}\n"
+                           . "Jumlah Bayar : *{$nominalStr}*\n"
+                           . "Metode       : {$transaksi->metode_pembayaran}\n"
+                           . "Sisa Tagihan : *✅ LUNAS*\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "📄 *Lihat / Unduh Nota Struk Digital:*\n"
+                           . "{$notaUrl}\n\n"
+                           . "_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                } else {
+                    // ============ PESAN CICILAN / KURANG BAYAR ============
+                    $sisaStr = 'Rp ' . number_format($tagihan->sisa, 0, ',', '.');
+                    $pesan = "⚠️ *BUKTI PEMBAYARAN (CICILAN)*\n"
+                           . "*SMK NURUL HIDAYAH*\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "No. Nota     : {$transaksi->nomor_transaksi}\n"
+                           . "Nama Siswa   : {$siswa->nama}\n"
+                           . "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n"
+                           . "Tanggal      : " . Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "Jenis Bayar  : {$posNama}\n"
+                           . "Total Tagihan: *{$totalStr}*\n"
+                           . "Sudah Dibayar: {$terbayarStr}\n"
+                           . "Bayar Kali Ini: *{$nominalStr}*\n"
+                           . "Metode       : {$transaksi->metode_pembayaran}\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "🔴 *Sisa Tagihan : {$sisaStr}*\n"
+                           . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "📄 *Lihat / Unduh Nota Struk Digital:*\n"
+                           . "{$notaUrl}\n\n"
+                           . "⚠️ _Harap segera melunasi sisa tagihan sebesar *{$sisaStr}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
+                }
+
+                // Tentukan nomor penerima: siswa/wali berdasarkan konfigurasi target
+                $waTarget = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
+                $penerimaNomor = [];
+
+                // Nomor siswa (no_hp di tabel siswa)
+                $nomorSiswa = trim((string) ($siswa->no_hp ?? ''));
+                if ($nomorSiswa !== '') {
+                    if (in_array($waTarget, ['siswa', 'both', 'all'], true)) {
+                        $penerimaNomor[] = $nomorSiswa;
+                    }
+                    // Untuk 'wali', gunakan nomor yang sama karena tidak ada field terpisah
+                    if ($waTarget === 'wali') {
+                        $penerimaNomor[] = $nomorSiswa;
+                    }
+                }
+
+                $penerimaNomor = array_values(array_unique($penerimaNomor));
+                foreach ($penerimaNomor as $nomor) {
+                    $waService->sendCustomMessage($nomor, $pesan);
+                }
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Gagal kirim WA pembayaran: ' . $e->getMessage());

@@ -473,7 +473,7 @@ class KeuanganSekolahController extends Controller
                 $notaUrl     = url('/keuangan/kuitansi/' . $transaksi->id);
                 $isLunas     = $tagihan->sisa <= 0;
 
-                $sisaStr     = $isLunas ? '✅ LUNAS' : ('Rp ' . number_format($tagihan->sisa, 0, ',', '.'));
+                $sisaStr     = $isLunas ? 'LUNAS' : ('Rp ' . number_format($tagihan->sisa, 0, ',', '.'));
 
                 $replacements = [
                     '{nama_siswa}'   => (string) ($siswa->nama ?? ''),
@@ -494,12 +494,12 @@ class KeuanganSekolahController extends Controller
                 if ($isLunas) {
                     $template = trim((string) ($settings['wa_template_pembayaran_lunas'] ?? ''));
                     if ($template === '') {
-                        $template = "✅ *BUKTI PEMBAYARAN RESMI*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nJumlah Bayar : *{jumlah_bayar}*\nMetode       : {metode}\nSisa Tagihan : *✅ LUNAS*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                        $template = "*BUKTI PEMBAYARAN RESMI*\n*SMK NURUL HIDAYAH*\n------------------------------------\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n------------------------------------\nJenis Bayar  : {jenis_bayar}\nJumlah Bayar : *{jumlah_bayar}*\nMetode       : {metode}\nSisa Tagihan : *LUNAS*\n------------------------------------\n*Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
                     }
                 } else {
                     $template = trim((string) ($settings['wa_template_pembayaran_cicilan'] ?? ''));
                     if ($template === '') {
-                        $template = "⚠️ *BUKTI PEMBAYARAN (CICILAN)*\n*SMK NURUL HIDAYAH*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJenis Bayar  : {jenis_bayar}\nTotal Tagihan: *{total_tagihan}*\nSudah Dibayar: {sudah_dibayar}\nBayar Kali Ini: *{jumlah_bayar}*\nMetode       : {metode}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔴 *Sisa Tagihan : {sisa_tagihan}*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📄 *Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n⚠️ _Harap segera melunasi sisa tagihan sebesar *{sisa_tagihan}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
+                        $template = "*BUKTI PEMBAYARAN (CICILAN)*\n*SMK NURUL HIDAYAH*\n------------------------------------\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n------------------------------------\nJenis Bayar  : {jenis_bayar}\nTotal Tagihan: *{total_tagihan}*\nSudah Dibayar: {sudah_dibayar}\nBayar Kali Ini: *{jumlah_bayar}*\nMetode       : {metode}\n------------------------------------\nSisa Tagihan : *{sisa_tagihan}*\n------------------------------------\n*Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Harap segera melunasi sisa tagihan sebesar *{sisa_tagihan}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
                     }
                 }
 

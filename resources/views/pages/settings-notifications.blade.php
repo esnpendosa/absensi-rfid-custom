@@ -383,7 +383,7 @@ Parameter 3 = api_key | Value 3 = token_anda</pre>
                                     <button type="button" class="js-wa-template-tab px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-100" data-panel="wa-template-panel-izin-siswa" aria-selected="false">Izin/Sakit Siswa</button>
                                     <button type="button" class="js-wa-template-tab px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-100" data-panel="wa-template-panel-reviewer" aria-selected="false">Notif Reviewer</button>
                                     <button type="button" class="js-wa-template-tab px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-100" data-panel="wa-template-panel-otp" aria-selected="false">OTP Reset Password</button>
-                                    <button type="button" class="js-wa-template-tab px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-100" data-panel="wa-template-panel-keuangan" aria-selected="false">💰 Keuangan</button>
+                                    <button type="button" class="js-wa-template-tab px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-100" data-panel="wa-template-panel-keuangan" aria-selected="false">Keuangan</button>
                                 </div>
                             </div>
 
@@ -476,32 +476,31 @@ Parameter 3 = api_key | Value 3 = token_anda</pre>
                                     <textarea name="wa_template_forgot_password_otp" rows="10" class="js-template-editor w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5">{{ old('wa_template_forgot_password_otp', $settings['wa_template_forgot_password_otp'] ?? '') }}</textarea>
                                 </div>
                             </div>
-                        </div>
 
-                        
                             <div id="wa-template-panel-keuangan" class="js-wa-template-panel hidden">
-                                <div class="mb-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 space-y-2">
-                                    <div class="font-semibold text-emerald-900">Placeholder notifikasi pembayaran (klik untuk menyisipkan):</div>
+                                <div class="mb-3 p-3 rounded-lg border border-blue-200 bg-blue-50 text-[11px] text-blue-800 space-y-2">
+                                    <div class="font-semibold text-blue-900">Placeholder notifikasi pembayaran (klik untuk menyisipkan):</div>
                                     <div class="flex flex-wrap gap-1.5">
                                         @foreach (['{nama_siswa}','{nisn}','{kelas}','{no_nota}','{tanggal}','{jenis_bayar}','{jumlah_bayar}','{metode}','{total_tagihan}','{sudah_dibayar}','{sisa_tagihan}','{nota_url}'] as $ph)
-                                            <button type="button" data-template-variable="{{ $ph }}" data-template-scope="wa-template-panel-keuangan" class="px-2 py-1 rounded border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-700 font-mono">{{ $ph }}</button>
+                                            <button type="button" data-template-variable="{{ $ph }}" data-template-scope="wa-template-panel-keuangan" class="px-2 py-1 rounded border border-blue-300 bg-white hover:bg-blue-100 text-blue-700 font-mono">{{ $ph }}</button>
                                         @endforeach
                                     </div>
                                     <div class="text-gray-500 mt-1">Gunakan format <code class="bg-white px-1 rounded">*bold*</code> dan <code class="bg-white px-1 rounded">_italic_</code> untuk WhatsApp.</div>
                                 </div>
                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block mb-1 text-xs font-bold text-emerald-700 uppercase tracking-wide">&#10003; Template Pembayaran LUNAS</label>
+                                        <label class="block mb-1 text-xs font-bold text-gray-700 uppercase tracking-wide">Template Pembayaran LUNAS</label>
                                         <p class="text-[11px] text-gray-500 mb-2">Dikirim saat tagihan telah lunas terbayar sepenuhnya.</p>
                                         <textarea name="wa_template_pembayaran_lunas" rows="16" class="js-template-editor w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-mono">{{ old('wa_template_pembayaran_lunas', $settings['wa_template_pembayaran_lunas'] ?? '') }}</textarea>
                                     </div>
                                     <div>
-                                        <label class="block mb-1 text-xs font-bold text-amber-700 uppercase tracking-wide">&#9888; Template Pembayaran CICILAN / Kurang Bayar</label>
+                                        <label class="block mb-1 text-xs font-bold text-gray-700 uppercase tracking-wide">Template Pembayaran CICILAN / Kurang Bayar</label>
                                         <p class="text-[11px] text-gray-500 mb-2">Dikirim saat masih ada sisa tagihan yang belum lunas.</p>
                                         <textarea name="wa_template_pembayaran_cicilan" rows="16" class="js-template-editor w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-mono">{{ old('wa_template_pembayaran_cicilan', $settings['wa_template_pembayaran_cicilan'] ?? '') }}</textarea>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
                          <div id="template-panel-telegram" class="js-template-panel hidden mt-4">
                             <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-3">

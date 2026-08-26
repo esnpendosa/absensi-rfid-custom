@@ -107,7 +107,10 @@ Route::middleware('auth')->group(function () {
             Route::post('/pembayaran/sync', [KeuanganSekolahController::class, 'syncSemuaTagihan'])->name('pembayaran.sync');
             Route::get('/cari-siswa', [KeuanganSekolahController::class, 'cariSiswa'])->name('cari-siswa');
             Route::get('/tagihan-siswa/{siswa}', [KeuanganSekolahController::class, 'tagihanSiswa'])->name('tagihan-siswa');
+            Route::put('/tagihan/{tagihanSiswa}', [KeuanganSekolahController::class, 'updateTagihan'])->name('tagihan.update');
+            Route::delete('/tagihan/{tagihanSiswa}', [KeuanganSekolahController::class, 'destroyTagihan'])->name('tagihan.destroy');
             Route::post('/bayar', [KeuanganSekolahController::class, 'bayarTagihan'])->name('bayar');
+            Route::delete('/transaksi/{transaksiKeuangan}', [KeuanganSekolahController::class, 'destroyTransaksi'])->name('transaksi.destroy');
             Route::get('/kuitansi/{transaksi}', [KeuanganSekolahController::class, 'cetakKuitansi'])->name('kuitansi');
 
             // LAPORAN KEUANGAN

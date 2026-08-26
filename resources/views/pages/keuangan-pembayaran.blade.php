@@ -225,6 +225,39 @@
         </form>
     </div>
 </div>
+
+<!-- MODAL EDIT NOMINAL TAGIHAN -->
+<div id="modalEditTagihan" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="font-bold text-sm text-gray-800 flex items-center gap-2">
+                <i class="fas fa-edit text-amber-500"></i> Edit Nominal Tagihan Siswa
+            </h3>
+            <button onclick="closeEditTagihanModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="formEditTagihan" onsubmit="submitFormEditTagihan(event)" class="space-y-4 text-xs">
+            <input type="hidden" id="editTagihanId">
+            <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1">
+                <div class="font-bold text-gray-800" id="editTagihanSiswaNama">-</div>
+                <div class="text-[11px] text-blue-600" id="editTagihanPosNama">-</div>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Nominal Tagihan (Rp) <span class="text-red-500">*</span></label>
+                <input type="number" id="editTagihanNominal" required min="0" step="1000" class="w-full bg-amber-50/60 border border-amber-300 rounded-xl p-3 text-sm font-bold text-amber-900 focus:ring-amber-500 focus:border-amber-500">
+                <p class="text-[10px] text-gray-400 mt-1">Ubah nominal jika siswa mendapatkan beasiswa, potongan, atau koreksi tagihan.</p>
+            </div>
+
+            <div class="mt-6 pt-3 border-t border-gray-100 flex justify-end gap-2">
+                <button type="button" onclick="closeEditTagihanModal()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">Batal</button>
+                <button type="submit" id="btnSubmitEditTagihan" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2">
+                    <i class="fas fa-save"></i> Simpan Perubahan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endif
 
 <script>
@@ -322,15 +355,28 @@ function renderTableRows(data, meta) {
 
         let actionCol = '';
         if (canInputPayment) {
+            let payBtn = '';
             if (r.status !== 'lunas') {
-                actionCol = `
-                    <button type="button" onclick="quickPay(${r.siswa_id}, ${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}', ${r.sisa})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition">
+                payBtn = `
+                    <button type="button" onclick="quickPay(${r.siswa_id}, ${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}', ${r.sisa})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition inline-flex items-center gap-1" title="Bayar">
                         <i class="fas fa-hand-holding-usd"></i> Bayar
                     </button>
                 `;
             } else {
-                actionCol = `<span class="text-[11px] font-bold text-emerald-600"><i class="fas fa-check-circle"></i> Selesai</span>`;
+                payBtn = `<span class="text-[11px] font-bold text-emerald-600 px-1"><i class="fas fa-check-circle"></i> Selesai</span>`;
             }
+
+            actionCol = `
+                <div class="flex items-center justify-center gap-1">
+                    ${payBtn}
+                    <button type="button" onclick="openEditTagihanModal(${r.id}, ${r.nominal}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}')" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-bold transition" title="Edit Tagihan">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" onclick="deleteTagihan(${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}')" class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[11px] font-bold transition" title="Hapus Tagihan">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
         } else {
             actionCol = r.status === 'lunas'
                 ? `<span class="text-[11px] font-bold text-emerald-600"><i class="fas fa-check-circle"></i> Lunas</span>`
@@ -555,6 +601,102 @@ async function submitFormInputPembayaran(e) {
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-check-circle"></i> Simpan Pembayaran`;
+    }
+}
+
+function openEditTagihanModal(tagihanId, currentNominal, siswaNama, posNama) {
+    document.getElementById('editTagihanId').value = tagihanId;
+    document.getElementById('editTagihanNominal').value = currentNominal;
+    document.getElementById('editTagihanSiswaNama').textContent = siswaNama;
+    document.getElementById('editTagihanPosNama').textContent = posNama;
+    document.getElementById('modalEditTagihan').classList.remove('hidden');
+}
+
+function closeEditTagihanModal() {
+    document.getElementById('modalEditTagihan').classList.add('hidden');
+}
+
+async function submitFormEditTagihan(e) {
+    e.preventDefault();
+    const tagihanId = document.getElementById('editTagihanId').value;
+    const nominal = document.getElementById('editTagihanNominal').value;
+
+    if (!tagihanId || nominal === '') return;
+
+    const btn = document.getElementById('btnSubmitEditTagihan');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Menyimpan...`;
+
+    try {
+        const res = await fetch(`{{ url('/keuangan/tagihan') }}/${tagihanId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ nominal: nominal })
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeEditTagihanModal();
+            loadTableData(currentPage);
+            if (window.Swal) {
+                window.Swal.fire({ icon: 'success', title: 'Berhasil', text: result.message, timer: 1500, showConfirmButton: false });
+            } else {
+                alert(result.message);
+            }
+        } else {
+            alert(result.message || 'Gagal mengubah tagihan.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-save"></i> Simpan Perubahan`;
+    }
+}
+
+async function deleteTagihan(tagihanId, siswaNama, posNama) {
+    const doDelete = async () => {
+        try {
+            const res = await fetch(`{{ url('/keuangan/tagihan') }}/${tagihanId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+            const result = await res.json();
+            if (result.success) {
+                loadTableData(currentPage);
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'success', title: 'Terhapus', text: result.message, timer: 1500, showConfirmButton: false });
+                } else {
+                    alert(result.message);
+                }
+            } else {
+                alert(result.message || 'Gagal menghapus tagihan.');
+            }
+        } catch (e) {
+            alert('Terjadi kesalahan.');
+        }
+    };
+
+    if (window.Swal) {
+        window.Swal.fire({
+            icon: 'warning',
+            title: 'Hapus Tagihan Ini?',
+            text: `Tagihan ${posNama} untuk ${siswaNama} akan dihapus dari sistem.`,
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#EF4444',
+        }).then(r => { if (r.isConfirmed) doDelete(); });
+    } else {
+        if (confirm(`Hapus tagihan ${posNama} untuk ${siswaNama}?`)) {
+            doDelete();
+        }
     }
 }
 </script>

@@ -406,6 +406,79 @@ class KeuanganSekolahController extends Controller
         ]);
     }
 
+    public function updateTagihan(Request $request, TagihanSiswa $tagihanSiswa): JsonResponse
+    {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak.'], 403);
+        }
+
+        $validated = $request->validate([
+            'nominal' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $nominal = (float) $validated['nominal'];
+        $terbayar = (float) $tagihanSiswa->terbayar;
+        $sisa = max(0, $nominal - $terbayar);
+        $status = $sisa <= 0 ? 'lunas' : ($terbayar > 0 ? 'cicilan' : 'belum_bayar');
+
+        $tagihanSiswa->update([
+            'nominal' => $nominal,
+            'sisa' => $sisa,
+            'status' => $status,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data tagihan berhasil diperbarui.',
+            'data' => $tagihanSiswa,
+        ]);
+    }
+
+    public function destroyTagihan(TagihanSiswa $tagihanSiswa): JsonResponse
+    {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak.'], 403);
+        }
+
+        DB::transaction(function () use ($tagihanSiswa) {
+            $tagihanSiswa->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tagihan berhasil dihapus.',
+        ]);
+    }
+
+    public function destroyTransaksi(TransaksiKeuangan $transaksiKeuangan): JsonResponse
+    {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak.'], 403);
+        }
+
+        DB::transaction(function () use ($transaksiKeuangan) {
+            $tagihan = $transaksiKeuangan->tagihan;
+            if ($tagihan) {
+                $newTerbayar = max(0, $tagihan->terbayar - (float) $transaksiKeuangan->nominal_bayar);
+                $newSisa = max(0, $tagihan->nominal - $newTerbayar);
+                $newStatus = $newSisa <= 0 ? 'lunas' : ($newTerbayar > 0 ? 'cicilan' : 'belum_bayar');
+
+                $tagihan->update([
+                    'terbayar' => $newTerbayar,
+                    'sisa' => $newSisa,
+                    'status' => $newStatus,
+                ]);
+            }
+
+            $transaksiKeuangan->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi pembayaran berhasil dibatalkan dan sisa tagihan telah disesuaikan.',
+        ]);
+    }
+
     public function bayarTagihan(Request $request): JsonResponse
     {
         if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {

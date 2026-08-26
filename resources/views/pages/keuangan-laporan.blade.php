@@ -117,7 +117,7 @@
                         <th class="p-3 text-right">Nominal Bayar</th>
                         <th class="p-3 text-center">Metode</th>
                         <th class="p-3">Kasir</th>
-                        <th class="p-3 text-center w-24">Struk</th>
+                        <th class="p-3 text-center w-28">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyLaporan" class="divide-y divide-gray-100 bg-white text-gray-700">
@@ -227,13 +227,65 @@ function renderLaporanRows(rows) {
                 </td>
                 <td class="p-3 text-gray-600 text-[11px]">${r.user ? r.user.name : 'Admin'}</td>
                 <td class="p-3 text-center">
-                    <a href="{{ url('/keuangan/kuitansi') }}/${r.id}" target="_blank" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition">
-                        <i class="fas fa-receipt"></i> Struk
-                    </a>
+                    <div class="flex items-center justify-center gap-1">
+                        <a href="{{ url('/keuangan/kuitansi') }}/${r.id}" target="_blank" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition" title="Lihat / Cetak Struk">
+                            <i class="fas fa-receipt"></i>
+                        </a>
+                        <button type="button" onclick="deleteTransaksi(${r.id}, '${escapeString(r.nomor_transaksi)}', '${escapeString(r.siswa ? r.siswa.nama : '')}', ${r.nominal_bayar})" class="p-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[11px] font-bold transition" title="Batalkan / Hapus Transaksi Ini">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+function escapeString(str) {
+    return String(str || '').replace(/'/g, "\\'");
+}
+
+async function deleteTransaksi(trxId, noTrx, siswaNama, nominal) {
+    const doDelete = async () => {
+        try {
+            const res = await fetch(`{{ url('/keuangan/transaksi') }}/${trxId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+            const result = await res.json();
+            if (result.success) {
+                loadLaporanData();
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'success', title: 'Dibatalkan', text: result.message, timer: 1500, showConfirmButton: false });
+                } else {
+                    alert(result.message);
+                }
+            } else {
+                alert(result.message || 'Gagal membatalkan transaksi.');
+            }
+        } catch (e) {
+            alert('Terjadi kesalahan jaringan.');
+        }
+    };
+
+    if (window.Swal) {
+        window.Swal.fire({
+            icon: 'warning',
+            title: 'Batalkan Transaksi Ini?',
+            text: `Transaksi ${noTrx} (${formatRupiah(nominal)}) untuk ${siswaNama} akan dihapus dan tagihan dikembalikan.`,
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Batalkan & Hapus',
+            cancelButtonText: 'Tutup',
+            confirmButtonColor: '#EF4444',
+        }).then(r => { if (r.isConfirmed) doDelete(); });
+    } else {
+        if (confirm(`Batalkan transaksi ${noTrx} (${formatRupiah(nominal)}) untuk ${siswaNama}?`)) {
+            doDelete();
+        }
+    }
 }
 
 function cetakLaporanPdf() {

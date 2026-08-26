@@ -331,110 +331,54 @@ class StudentAttendanceService
 
     protected function dispatchWaAttendanceNotification(Siswa $siswa, array $context): void
     {
-        $dispatchMode = strtoupper(trim((string) config('services.wa_gateway.dispatch_mode', 'QUEUE')));
+        $siswaId = (int) ($siswa->id ?? 0);
+        $nisn = (string) ($siswa->nisn ?? '');
 
-        if (in_array($dispatchMode, ['QUEUE', 'AFTER'], true)) {
-            $siswaId = (int) ($siswa->id ?? 0);
-            $nisn = (string) ($siswa->nisn ?? '');
-
-            if ($siswaId <= 0) {
-                return;
-            }
-
-            SendWaAttendanceNotificationJob::dispatch($siswaId, $context, $nisn !== '' ? $nisn : null);
-
+        if ($siswaId <= 0) {
             return;
         }
 
-        if (in_array($dispatchMode, ['REALTIME', 'AFTER_RESPONSE'], true)) {
-            $siswaId = (int) ($siswa->id ?? 0);
-            $nisn = (string) ($siswa->nisn ?? '');
-
-            dispatch(function () use ($siswaId, $context, $nisn): void {
-                try {
-                    if ($siswaId <= 0) {
-                        return;
-                    }
-
-                    $targetSiswa = Siswa::query()->find($siswaId);
-                    if (!$targetSiswa) {
-                        return;
-                    }
-
-                    app(WaGatewayService::class)->notifyAttendance($targetSiswa, $context);
-                } catch (\Throwable $e) {
-                    Log::warning('WA attendance notification failed (realtime after response)', [
-                        'nisn' => $nisn !== '' ? $nisn : null,
-                        'message' => $e->getMessage(),
-                    ]);
+        dispatch(function () use ($siswaId, $context, $nisn): void {
+            try {
+                $targetSiswa = Siswa::query()->find($siswaId);
+                if (!$targetSiswa) {
+                    return;
                 }
-            })->afterResponse();
 
-            return;
-        }
-
-        try {
-            app(WaGatewayService::class)->notifyAttendance($siswa, $context);
-        } catch (\Throwable $e) {
-            Log::warning('WA attendance notification failed', [
-                'nisn' => $siswa->nisn ?? null,
-                'message' => $e->getMessage(),
-            ]);
-        }
+                app(WaGatewayService::class)->notifyAttendance($targetSiswa, $context);
+            } catch (\Throwable $e) {
+                Log::warning('WA attendance notification failed (after response)', [
+                    'nisn' => $nisn !== '' ? $nisn : null,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        })->afterResponse();
     }
 
     protected function dispatchTelegramAttendanceNotification(Siswa $siswa, array $context): void
     {
-        $dispatchMode = strtoupper(trim((string) config('services.telegram_bot.dispatch_mode', 'QUEUE')));
+        $siswaId = (int) ($siswa->id ?? 0);
+        $nisn = (string) ($siswa->nisn ?? '');
 
-        if (in_array($dispatchMode, ['QUEUE', 'AFTER'], true)) {
-            $siswaId = (int) ($siswa->id ?? 0);
-            $nisn = (string) ($siswa->nisn ?? '');
-
-            if ($siswaId <= 0) {
-                return;
-            }
-
-            SendTelegramAttendanceNotificationJob::dispatch($siswaId, $context, $nisn !== '' ? $nisn : null);
-
+        if ($siswaId <= 0) {
             return;
         }
 
-        if (in_array($dispatchMode, ['REALTIME', 'AFTER_RESPONSE'], true)) {
-            $siswaId = (int) ($siswa->id ?? 0);
-            $nisn = (string) ($siswa->nisn ?? '');
-
-            dispatch(function () use ($siswaId, $context, $nisn): void {
-                try {
-                    if ($siswaId <= 0) {
-                        return;
-                    }
-
-                    $targetSiswa = Siswa::query()->find($siswaId);
-                    if (! $targetSiswa) {
-                        return;
-                    }
-
-                    app(TelegramBotService::class)->notifyAttendance($targetSiswa, $context);
-                } catch (\Throwable $e) {
-                    Log::warning('Telegram attendance notification failed (realtime after response)', [
-                        'nisn' => $nisn !== '' ? $nisn : null,
-                        'message' => $e->getMessage(),
-                    ]);
+        dispatch(function () use ($siswaId, $context, $nisn): void {
+            try {
+                $targetSiswa = Siswa::query()->find($siswaId);
+                if (!$targetSiswa) {
+                    return;
                 }
-            })->afterResponse();
 
-            return;
-        }
-
-        try {
-            app(TelegramBotService::class)->notifyAttendance($siswa, $context);
-        } catch (\Throwable $e) {
-            Log::warning('Telegram attendance notification failed', [
-                'nisn' => $siswa->nisn ?? null,
-                'message' => $e->getMessage(),
-            ]);
-        }
+                app(TelegramBotService::class)->notifyAttendance($targetSiswa, $context);
+            } catch (\Throwable $e) {
+                Log::warning('Telegram attendance notification failed (after response)', [
+                    'nisn' => $nisn !== '' ? $nisn : null,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        })->afterResponse();
     }
 
     /**

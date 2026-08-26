@@ -38,4 +38,9 @@ class MonitoringController extends PageActionController
     {
         return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->attendanceRecords->updateAbsensiStatus($args, $auth));
     }
+
+    public function updateRecord(Request $request): JsonResponse
+    {
+        return $this->respondArgsAuth($request, fn (array $args, $auth) => $this->attendanceRecords->updateAbsensiRecord($args, $auth));
+    }
 }

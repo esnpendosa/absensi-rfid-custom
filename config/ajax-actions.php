@@ -57,6 +57,7 @@ return [
         'getPelajaranReportData' => 'ajax.lessons.reports.index',
         'getPelajaranReportSessionDetail' => 'ajax.lessons.reports.detail',
         'updateAbsensiStatus' => 'ajax.attendance.update-status',
+        'updateAbsensiRecord' => 'ajax.attendance.update-record',
         'getTemplateExcel' => 'ajax.reports.template-excel',
     ],
 ];

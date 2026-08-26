@@ -90,6 +90,7 @@ Route::middleware('auth')
                 Route::post('/batch-scan', [ScannerController::class, 'batchScan'])->name('batch-scan');
                 Route::post('/scan-rfid', [ScannerController::class, 'scanRfid'])->name('scan-rfid');
                 Route::post('/update-status', [ScannerController::class, 'updateStatus'])->name('update-status');
+                Route::post('/update-record', [MonitoringController::class, 'updateRecord'])->name('update-record');
             });
 
         Route::prefix('reports')

@@ -68,6 +68,18 @@
         </div>
 
         <div class="overflow-x-auto">
+                </select>
+            </div>
+
+            <div class="relative w-full md:w-64">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400 text-xs"></i>
+                </div>
+                <input type="text" oninput="handleTableSearch('monitoring', this.value)" class="bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 p-2 transition-all" placeholder="Cari Nama / Kelas...">
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase font-semibold">
                   <tr>
@@ -78,6 +90,7 @@
                       <th class="p-4 text-center">Jam Pulang</th>
                       <th class="p-4 text-center">Keterangan Waktu</th>
                       <th class="p-4 text-center">Status Kehadiran</th>
+                      <th class="p-4 text-center w-16">Aksi</th>
                   </tr>
               </thead>
               <tbody id="tbody-monitoring" class="divide-y divide-gray-50 bg-white text-sm">
@@ -93,6 +106,71 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- MODAL EDIT JAM & STATUS ABSENSI -->
+<div id="modalEditAbsensi" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="font-bold text-sm text-gray-800 flex items-center gap-2">
+                <i class="fas fa-clock text-indigo-600"></i> Koreksi Jam & Status Presensi
+            </h3>
+            <button type="button" onclick="closeEditAbsensiModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="formEditAbsensi" onsubmit="submitFormEditAbsensi(event)" class="space-y-3.5 text-xs">
+            <input type="hidden" id="editAbsenNisn">
+            
+            <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
+                <div class="font-bold text-gray-900 text-sm" id="editAbsenNama">-</div>
+                <div class="text-[11px] text-indigo-700 font-mono mt-0.5" id="editAbsenNisnKelas">-</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Jam Datang / Masuk</label>
+                    <input type="time" id="editAbsenJamDatang" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-mono font-bold text-gray-800 focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-[10px] text-gray-400 mt-1">Contoh: 06:45</p>
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Jam Pulang</label>
+                    <input type="time" id="editAbsenJamPulang" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-mono font-bold text-gray-800 focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-[10px] text-gray-400 mt-1">Contoh: 12:15</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Status Kehadiran <span class="text-red-500">*</span></label>
+                <select id="editAbsenStatus" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-800 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="Hadir">Hadir</option>
+                    <option value="Masuk">Masuk</option>
+                    <option value="Izin">Izin</option>
+                    <option value="Sakit">Sakit</option>
+                    <option value="Alpa">Alpa</option>
+                    <option value="Belum Absen">Belum Absen (Reset)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Keterangan Waktu / Keterangan Masuk</label>
+                <select id="editAbsenKeterangan" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-800 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="Tepat Waktu">Tepat Waktu (Hijau)</option>
+                    <option value="Terlambat">Terlambat (Merah)</option>
+                    <option value="Pulang Cepat">Pulang Cepat (Oranye)</option>
+                    <option value="auto">Hitung Otomatis Dari Jam Masuk</option>
+                </select>
+                <p class="text-[10px] text-gray-400 mt-1">Pilih <b>Tepat Waktu</b> jika siswa telat karena kendala jaringan / internet scanner.</p>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-gray-100 flex justify-end gap-2">
+                <button type="button" onclick="closeEditAbsensiModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition">Batal</button>
+                <button type="submit" id="btnSubmitEditAbsen" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition">
+                    <i class="fas fa-check"></i> Simpan Perubahan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @push('scripts')

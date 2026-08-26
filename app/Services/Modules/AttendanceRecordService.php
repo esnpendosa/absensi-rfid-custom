@@ -1030,4 +1030,107 @@ class AttendanceRecordService extends BaseActionService
         return ['success' => true, 'message' => 'Status absensi diperbarui.'];
     }
 
+    public function updateAbsensiRecord(array $args, $auth): array
+    {
+        $role = $this->getRoleFromAuth($auth);
+        if (!$auth || !in_array($role, ['admin', 'kepsek', 'wakel', 'piket', 'super-admin'], true)) {
+            return ['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'];
+        }
+
+        $payload = $args[0] ?? [];
+        $nisn = trim((string) ($payload['nisn'] ?? ''));
+        if ($nisn === '') {
+            return ['success' => false, 'message' => 'NISN siswa wajib diisi.'];
+        }
+
+        $siswa = Siswa::query()->where('nisn', $nisn)->first();
+        if (!$siswa) {
+            return ['success' => false, 'message' => 'Data siswa tidak ditemukan.'];
+        }
+
+        if ($role === 'wakel') {
+            $wakelKelas = $this->getWakelKelasFromAuth($auth);
+            if ($wakelKelas && $this->normalizeKelasValue($siswa->kelas) !== $wakelKelas) {
+                return ['success' => false, 'message' => 'Wali kelas hanya boleh mengubah absensi siswa di kelasnya sendiri.'];
+            }
+        }
+
+        $today = Carbon::today()->toDateString();
+        $tanggal = trim((string) ($payload['tanggal'] ?? '')) ?: $today;
+        $jamDatang = trim((string) ($payload['jam_datang'] ?? '')) ?: null;
+        $jamPulang = trim((string) ($payload['jam_pulang'] ?? '')) ?: null;
+        $status = trim((string) ($payload['status'] ?? 'Hadir'));
+        $customKeterangan = isset($payload['keterangan']) ? trim((string) $payload['keterangan']) : null;
+
+        // Normalisasi format jam HH:MM:SS
+        if ($jamDatang && strlen($jamDatang) === 5) {
+            $jamDatang .= ':00';
+        }
+        if ($jamPulang && strlen($jamPulang) === 5) {
+            $jamPulang .= ':00';
+        }
+
+        $row = Absensi::query()
+            ->where('tanggal', $tanggal)
+            ->where('siswa_id', $siswa->id)
+            ->first();
+
+        if ($status === 'Belum Absen') {
+            if ($row) {
+                $row->delete();
+            }
+            return ['success' => true, 'message' => 'Data absensi direset menjadi Belum Absen.'];
+        }
+
+        if (!$row) {
+            $row = new Absensi();
+            $row->tanggal = $tanggal;
+            $row->siswa_id = $siswa->id;
+            $row->nisn = $siswa->nisn;
+            $row->nama = $siswa->nama;
+            $row->kelas = $siswa->kelas;
+        }
+
+        $row->status = $status;
+        $row->jam_datang = $jamDatang;
+        $row->jam_pulang = $jamPulang;
+
+        if ($customKeterangan !== null && $customKeterangan !== '' && $customKeterangan !== 'auto') {
+            $row->keterangan = $customKeterangan;
+        } else {
+            // Hitung otomatis berdasarkan jam datang & pulang
+            if (in_array($status, ['Hadir', 'Masuk'], true) && $jamDatang) {
+                $jamKelas = $this->getJamConfigForKelas($siswa->kelas);
+                $masukTelat = $jamKelas['jam_masuk_telat'];
+                $jamPulangMulai = $jamKelas['jam_pulang_mulai'];
+
+                if ($jamDatang > ($masukTelat . ':00')) {
+                    $row->keterangan = 'Terlambat';
+                } elseif ($jamPulang && $jamPulang < ($jamPulangMulai . ':00')) {
+                    $row->keterangan = 'Pulang Cepat';
+                } else {
+                    $row->keterangan = 'Tepat Waktu';
+                }
+            } else {
+                $row->keterangan = $status;
+            }
+        }
+
+        $row->save();
+
+        return [
+            'success' => true,
+            'message' => 'Data jam & status absensi siswa berhasil diperbarui.',
+            'data' => [
+                'nisn' => $siswa->nisn,
+                'nama' => $siswa->nama,
+                'kelas' => $siswa->kelas,
+                'jamDatang' => $row->jam_datang ? substr((string) $row->jam_datang, 0, 5) : '-',
+                'jamPulang' => $row->jam_pulang ? substr((string) $row->jam_pulang, 0, 5) : '-',
+                'keterangan' => $row->keterangan ?: '-',
+                'status' => $row->status,
+            ]
+        ];
+    }
+
 }

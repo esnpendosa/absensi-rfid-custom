@@ -1091,12 +1091,12 @@ function renderMonitoringRows(data, startIdx) {
     
     // 1. Cek jika data kosong
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-12 text-center text-gray-400 italic bg-white">Tidak ada data ditemukan.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="p-12 text-center text-gray-400 italic bg-white">Tidak ada data ditemukan.</td></tr>';
         return;
     }
 
     // 2. Cek Hak Akses (Hanya Guru/Admin yang bisa edit dropdown)
-    const canEdit = (role === 'wakel' || role === 'admin');
+    const canEdit = (role === 'wakel' || role === 'admin' || role === 'super-admin' || role === 'piket');
     const cursorClass = canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-70';
     const disabledAttr = canEdit ? '' : 'disabled';
     const canSelectMasukStatus = String(tableState.monitoring?.attendanceMode || 'masuk_saja') === 'masuk_pulang';
@@ -1172,10 +1172,94 @@ function renderMonitoringRows(data, startIdx) {
                 </select>
                 ${canEdit ? '<i class="fas fa-chevron-down absolute right-6 top-1/2 transform -translate-y-1/2 text-[10px] pointer-events-none opacity-40"></i>' : ''}
             </td>
+
+            <td class="p-4 text-center">
+                ${canEdit ? `
+                    <button type="button" onclick="openEditAbsensiModal('${d.nisn}', '${escapeJs(d.nama)}', '${escapeJs(d.kelas)}', '${d.jamDatang === '-' ? '' : d.jamDatang}', '${d.jamPulang === '-' ? '' : d.jamPulang}', '${escapeJs(d.keterangan || '')}', '${d.status}')" class="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition shadow-sm" title="Edit Jam & Keterangan Presensi">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                ` : '-'}
+            </td>
         </tr>`;
     }).join('');
 }
 
+function openEditAbsensiModal(nisn, nama, kelas, jamDatang, jamPulang, keterangan, status) {
+    document.getElementById('editAbsenNisn').value = nisn;
+    document.getElementById('editAbsenNama').textContent = nama;
+    document.getElementById('editAbsenNisnKelas').textContent = `NISN: ${nisn} | Kelas: ${kelas}`;
+    document.getElementById('editAbsenJamDatang').value = jamDatang || '';
+    document.getElementById('editAbsenJamPulang').value = jamPulang || '';
+    document.getElementById('editAbsenStatus').value = status || 'Hadir';
+
+    const ketSelect = document.getElementById('editAbsenKeterangan');
+    if (keterangan === 'Tepat Waktu' || keterangan === 'Terlambat' || keterangan === 'Pulang Cepat') {
+        ketSelect.value = keterangan;
+    } else {
+        ketSelect.value = 'auto';
+    }
+
+    document.getElementById('modalEditAbsensi').classList.remove('hidden');
+}
+
+function closeEditAbsensiModal() {
+    document.getElementById('modalEditAbsensi').classList.add('hidden');
+}
+
+function submitFormEditAbsensi(e) {
+    e.preventDefault();
+    const nisn = document.getElementById('editAbsenNisn').value;
+    const jamDatang = document.getElementById('editAbsenJamDatang').value;
+    const jamPulang = document.getElementById('editAbsenJamPulang').value;
+    const status = document.getElementById('editAbsenStatus').value;
+    const keterangan = document.getElementById('editAbsenKeterangan').value;
+
+    if (!nisn) return;
+
+    const btn = document.getElementById('btnSubmitEditAbsen');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Menyimpan...`;
+
+    actionRunner
+        .withSuccessHandler(res => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-check"></i> Simpan Perubahan`;
+
+            if (res && res.success) {
+                closeEditAbsensiModal();
+                loadMonitoringAbsensi();
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: res.message || 'Data presensi berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    alert(res.message || 'Data presensi berhasil diperbarui.');
+                }
+            } else {
+                alert((res && res.message) || 'Gagal menyimpan perubahan.');
+            }
+        })
+        .withFailureHandler(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-check"></i> Simpan Perubahan`;
+            alert(err || 'Terjadi kesalahan jaringan.');
+        })
+        .updateAbsensiRecord({
+            nisn: nisn,
+            jam_datang: jamDatang,
+            jam_pulang: jamPulang,
+            status: status,
+            keterangan: keterangan
+        });
+}
+
+function escapeJs(str) {
+    return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
     // Fungsi Handler saat Guru mengubah Status
 function changeStatus(nisn, nama, kelas, selectElement) {
     const newStatus = selectElement.value;

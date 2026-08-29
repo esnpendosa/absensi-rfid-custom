@@ -937,12 +937,18 @@ class AttendanceRecordService extends BaseActionService
 
     public function updateAbsensiStatus(array $args, $auth): array
     {
-        // Kepsek dan wakasek bersifat read-only untuk monitoring absensi.
-        if (!$this->authHasAnyRole($auth, ['admin', 'wakel'])) {
+        $role = $this->getRoleFromAuth($auth);
+        if (!$auth || !in_array($role, ['admin', 'kepsek', 'wakel', 'piket', 'super-admin'], true)) {
             return ['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'];
         }
 
         $args = $this->stripTokenArg($args);
+
+        // Jika dipanggil dengan payload array / object (fitur edit jam & presensi lengkap)
+        if (isset($args[0]) && is_array($args[0])) {
+            return $this->updateAbsensiRecord($args, $auth);
+        }
+
         $nisn = trim((string) ($args[0] ?? ''));
         $nama = trim((string) ($args[1] ?? ''));
         $kelas = trim((string) ($args[2] ?? ''));

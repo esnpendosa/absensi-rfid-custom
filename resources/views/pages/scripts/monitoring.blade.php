@@ -42,7 +42,7 @@
 
         if (!endpoint) {
             const fallbackMap = {
-                'updateAbsensiRecord': "{{ url('/ajax/attendance/update-record') }}",
+                'updateAbsensiRecord': "{{ url('/ajax/attendance/update-status') }}",
                 'updateAbsensiStatus': "{{ url('/ajax/attendance/update-status') }}",
                 'getMonitoringRealtime': "{{ url('/ajax/attendance/monitoring') }}",
                 'markPulangMassal': "{{ url('/ajax/attendance/mark-pulang-massal') }}",
@@ -1232,9 +1232,7 @@ async function submitFormEditAbsensi(e) {
     btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Menyimpan...`;
 
     try {
-        let endpoint = (window.APP_AJAX_ACTIONS && window.APP_AJAX_ACTIONS['updateAbsensiRecord'])
-            ? window.APP_AJAX_ACTIONS['updateAbsensiRecord']
-            : "{{ url('/ajax/attendance/update-record') }}";
+        let endpoint = "{{ url('/ajax/attendance/update-status') }}";
 
         const token = getCurrentUserToken();
         const payload = {

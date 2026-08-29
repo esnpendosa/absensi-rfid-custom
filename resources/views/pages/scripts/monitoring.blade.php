@@ -38,7 +38,18 @@
 
     function resolveActionEndpoint(method) {
         const methodName = String(method || '').trim();
-        const endpoint = (window.APP_AJAX_ACTIONS || {})[methodName];
+        let endpoint = (window.APP_AJAX_ACTIONS || {})[methodName];
+
+        if (!endpoint) {
+            const fallbackMap = {
+                'updateAbsensiRecord': "{{ url('/ajax/attendance/update-record') }}",
+                'updateAbsensiStatus': "{{ url('/ajax/attendance/update-status') }}",
+                'getMonitoringRealtime': "{{ url('/ajax/attendance/monitoring') }}",
+                'markPulangMassal': "{{ url('/ajax/attendance/mark-pulang-massal') }}",
+                'getDashboardSummary': "{{ url('/ajax/attendance/dashboard-summary') }}",
+            };
+            endpoint = fallbackMap[methodName] || (window.location.origin + '/ajax/attendance/' + methodName.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`));
+        }
 
         if (!endpoint) {
             throw new Error(`Endpoint "${methodName}" belum dikonfigurasi.`);
@@ -1206,7 +1217,7 @@ function closeEditAbsensiModal() {
     document.getElementById('modalEditAbsensi').classList.add('hidden');
 }
 
-function submitFormEditAbsensi(e) {
+async function submitFormEditAbsensi(e) {
     e.preventDefault();
     const nisn = document.getElementById('editAbsenNisn').value;
     const jamDatang = document.getElementById('editAbsenJamDatang').value;
@@ -1220,41 +1231,60 @@ function submitFormEditAbsensi(e) {
     btn.disabled = true;
     btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Menyimpan...`;
 
-    actionRunner
-        .withSuccessHandler(res => {
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fas fa-check"></i> Simpan Perubahan`;
+    try {
+        let endpoint = (window.APP_AJAX_ACTIONS && window.APP_AJAX_ACTIONS['updateAbsensiRecord'])
+            ? window.APP_AJAX_ACTIONS['updateAbsensiRecord']
+            : "{{ url('/ajax/attendance/update-record') }}";
 
-            if (res && res.success) {
-                closeEditAbsensiModal();
-                loadMonitoringAbsensi();
-                if (window.Swal) {
-                    window.Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: res.message || 'Data presensi berhasil diperbarui.',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                } else {
-                    alert(res.message || 'Data presensi berhasil diperbarui.');
-                }
-            } else {
-                alert((res && res.message) || 'Gagal menyimpan perubahan.');
-            }
-        })
-        .withFailureHandler(err => {
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fas fa-check"></i> Simpan Perubahan`;
-            alert(err || 'Terjadi kesalahan jaringan.');
-        })
-        .updateAbsensiRecord({
-            nisn: nisn,
-            jam_datang: jamDatang,
-            jam_pulang: jamPulang,
-            status: status,
-            keterangan: keterangan
+        const token = getCurrentUserToken();
+        const payload = {
+            args: [{
+                nisn: nisn,
+                jam_datang: jamDatang,
+                jam_pulang: jamPulang,
+                status: status,
+                keterangan: keterangan
+            }]
+        };
+        if (token) payload.token = token;
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+            body: JSON.stringify(payload),
         });
+
+        const res = await response.json().catch(() => ({}));
+
+        if (response.ok && res && res.success) {
+            closeEditAbsensiModal();
+            loadMonitoringAbsensi();
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: res.message || 'Data presensi berhasil diperbarui.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } else {
+                alert(res.message || 'Data presensi berhasil diperbarui.');
+            }
+        } else {
+            alert((res && res.message) || 'Gagal menyimpan perubahan.');
+        }
+    } catch (err) {
+        alert(err.message || 'Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-check"></i> Simpan Perubahan`;
+    }
 }
 
 function escapeJs(str) {

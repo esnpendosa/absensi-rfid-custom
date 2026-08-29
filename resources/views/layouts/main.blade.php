@@ -141,7 +141,9 @@
             $ajaxActionEndpoints = [];
             if ($isAppPage) {
                 foreach (config('ajax-actions.method_routes', []) as $actionMethod => $routeName) {
-                    $ajaxActionEndpoints[$actionMethod] = route($routeName);
+                    $ajaxActionEndpoints[$actionMethod] = \Illuminate\Support\Facades\Route::has($routeName)
+                        ? route($routeName)
+                        : url('/ajax/' . str_replace(['ajax.', '.'], ['', '/'], $routeName));
                 }
             }
         @endphp

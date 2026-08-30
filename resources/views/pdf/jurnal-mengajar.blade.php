@@ -90,15 +90,15 @@
     <div class="signature-block keep-together">
         <div>Bungah, {{ ($printedAt ?? now())->translatedFormat('d F Y') }}</div>
         <div style="margin-top: 4px; font-weight: 700;">Mengetahui,</div>
-        <div>{{ ($settings['report_signer_position'] ?? '') !== '' ? $settings['report_signer_position'] : 'Kepala Sekolah' }}</div>
-        <div class="signature-space" style="height: 75px; text-align: center;">
+        <div style="margin-bottom: 4px;">{{ ($settings['report_signer_position'] ?? '') !== '' ? $settings['report_signer_position'] : 'Kepala Sekolah' }}</div>
+        <div class="signature-space" style="min-height: 95px; display: flex; align-items: center; justify-content: center; margin: 4px 0;">
             @php
                 $ttdPath = public_path('images/ttd-istianah.png');
                 $ttdData = file_exists($ttdPath) ? ('data:image/png;base64,' . base64_encode(file_get_contents($ttdPath))) : asset('images/ttd-istianah.png');
             @endphp
-            <img src="{{ $ttdData }}" style="height: 75px; margin: -5px auto;" alt="Ttd & Stempel">
+            <img src="{{ $ttdData }}" style="height: 95px; width: auto; max-width: 170px; object-fit: contain; display: block; margin: 0 auto;" alt="Ttd & Stempel Istianah, S.Si">
         </div>
-        <div style="font-weight: 700;">
+        <div style="font-weight: 700; margin-top: 4px;">
             {{ ($settings['report_signer_name'] ?? '') !== '' ? $settings['report_signer_name'] : 'ISTIANAH, S.Si' }}
         </div>
     </div>

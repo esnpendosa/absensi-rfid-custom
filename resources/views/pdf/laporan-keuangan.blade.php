@@ -93,24 +93,24 @@
 
     <div class="signature-section">
         <div class="sign-box">
-            <div>Mengetahui,</div>
-            <div>Kepala Sekolah</div>
-            <div class="sign-space" style="height: 75px; text-align: center;">
+            <div style="margin-bottom: 2px;">Mengetahui,</div>
+            <div style="font-weight: bold; margin-bottom: 6px;">Kepala Sekolah</div>
+            <div style="min-height: 95px; display: flex; align-items: center; justify-content: center; margin: 4px 0;">
                 @php
                     $ttdPath = public_path('images/ttd-istianah.png');
                     $ttdData = file_exists($ttdPath) ? ('data:image/png;base64,' . base64_encode(file_get_contents($ttdPath))) : asset('images/ttd-istianah.png');
                 @endphp
-                <img src="{{ $ttdData }}" style="height: 75px; margin: -5px auto;" alt="Ttd & Stempel">
+                <img src="{{ $ttdData }}" style="height: 95px; width: auto; max-width: 170px; object-fit: contain; display: block; margin: 0 auto;" alt="Ttd & Stempel Istianah, S.Si">
             </div>
-            <div><b>ISTIANAH, S.Si</b></div>
-            <div>NIP. -</div>
+            <div style="margin-top: 4px;"><b>ISTIANAH, S.Si</b></div>
+            <div style="color: #64748b; font-size: 10px;">NIP. -</div>
         </div>
         <div class="sign-box">
-            <div>Bungah, {{ \Carbon\Carbon::today()->translatedFormat('d F Y') }}</div>
-            <div>Bendahara Sekolah</div>
-            <div class="sign-space" style="height: 75px;"></div>
-            <div><b>{{ auth()->user()->name ?? 'Bendahara' }}</b></div>
-            <div>NIP. -</div>
+            <div style="margin-bottom: 2px;">Bungah, {{ \Carbon\Carbon::today()->translatedFormat('d F Y') }}</div>
+            <div style="font-weight: bold; margin-bottom: 6px;">Bendahara Sekolah</div>
+            <div style="height: 95px; margin: 4px 0;"></div>
+            <div style="margin-top: 4px;"><b>{{ auth()->user()->name ?? 'Bendahara' }}</b></div>
+            <div style="color: #64748b; font-size: 10px;">NIP. -</div>
         </div>
     </div>
 </body>

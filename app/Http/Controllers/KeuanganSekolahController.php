@@ -695,14 +695,6 @@ class KeuanganSekolahController extends Controller
             abort(404, 'Data kuitansi pembayaran tidak ditemukan atau telah dibatalkan.');
         }
 
-        $user = auth()->user();
-        if ($user && $user->hasRole('siswa')) {
-            $siswa = $transaksi->siswa;
-            if ($siswa && $siswa->nisn !== $user->username && $siswa->nama !== $user->name) {
-                abort(403, 'Akses Ditolak: Anda hanya boleh melihat kuitansi Anda sendiri.');
-            }
-        }
-
         // Ambil base nomor transaksi (tanpa suffix -1, -2, dll jika ada)
         $rawNo = $transaksi->nomor_transaksi;
         $baseNo = preg_replace('/-\d+$/', '', $rawNo);

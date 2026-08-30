@@ -78,6 +78,8 @@ Route::get('/storage/{path}', function (string $path) {
 
 use App\Http\Controllers\PortalController;
 
+Route::get('/', [PortalController::class, 'index'])->name('portal');
+
 // PUBLIC KUITANSI PEMBAYARAN (Bisa dibuka langsung tanpa login dari link WhatsApp)
 Route::get('/keuangan/kuitansi/{transaksi}', [KeuanganSekolahController::class, 'cetakKuitansi'])->name('keuangan.kuitansi');
 

@@ -95,14 +95,16 @@
         <div class="sign-box">
             <div>Mengetahui,</div>
             <div>Kepala Sekolah</div>
-            <div class="sign-space"></div>
-            <div><b>ISTIANAH, S.Pd</b></div>
+            <div class="sign-space" style="height: 65px; text-align: center;">
+                <img src="{{ public_path('images/ttd-istianah.png') }}" style="height: 65px; margin: -5px auto;" alt="Ttd & Stempel">
+            </div>
+            <div><b>ISTIANAH, S.Si</b></div>
             <div>NIP. -</div>
         </div>
         <div class="sign-box">
             <div>Bungah, {{ \Carbon\Carbon::today()->translatedFormat('d F Y') }}</div>
             <div>Bendahara Sekolah</div>
-            <div class="sign-space"></div>
+            <div class="sign-space" style="height: 65px;"></div>
             <div><b>{{ auth()->user()->name ?? 'Bendahara' }}</b></div>
             <div>NIP. -</div>
         </div>

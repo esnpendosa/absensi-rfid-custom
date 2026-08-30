@@ -88,12 +88,14 @@
     </table>
 
     <div class="signature-block keep-together">
-        <div>{{ ($printedAt ?? now())->translatedFormat('d F Y') }}</div>
+        <div>Bungah, {{ ($printedAt ?? now())->translatedFormat('d F Y') }}</div>
         <div style="margin-top: 4px; font-weight: 700;">Mengetahui,</div>
         <div>{{ ($settings['report_signer_position'] ?? '') !== '' ? $settings['report_signer_position'] : 'Kepala Sekolah' }}</div>
-        <div class="signature-space"></div>
+        <div class="signature-space" style="height: 60px; text-align: center;">
+            <img src="{{ public_path('images/ttd-istianah.png') }}" style="height: 60px; margin: -5px auto;" alt="Ttd & Stempel">
+        </div>
         <div style="font-weight: 700;">
-            {{ ($settings['report_signer_name'] ?? '') !== '' ? $settings['report_signer_name'] : '(...................................)' }}
+            {{ ($settings['report_signer_name'] ?? '') !== '' ? $settings['report_signer_name'] : 'ISTIANAH, S.Si' }}
         </div>
     </div>
     <div style="clear: both;"></div>

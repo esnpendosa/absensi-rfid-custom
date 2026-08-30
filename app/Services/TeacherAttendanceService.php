@@ -38,10 +38,9 @@ class TeacherAttendanceService extends BaseActionService
             ->where('user_id', $teacher->id)
             ->first();
 
-        // 1. Presensi Masuk (Datang Pertama)
+        // 1. Presensi Masuk (Datang Pertama) - Fleksibel tanpa batas terlambat untuk guru
         if (!$row) {
-            $isLate = $jamNow > $jamMasukAkhir;
-            $keterangan = $isLate ? 'Terlambat' : 'Tepat Waktu';
+            $keterangan = 'Tepat Waktu';
 
             $row = AbsensiGuru::query()->create([
                 'user_id' => $teacher->id,
@@ -893,60 +892,24 @@ class TeacherAttendanceService extends BaseActionService
 
     public function dispatchTeacherAttendanceNotification(User $teacher, array $context): void
     {
-        $dispatchMode = strtoupper(trim((string) config('services.wa_gateway.dispatch_mode', 'QUEUE')));
         $teacherId = (int) ($teacher->id ?? 0);
-
-        if (in_array($dispatchMode, ['REALTIME', 'AFTER_RESPONSE'], true)) {
-            dispatch(function () use ($teacherId, $context): void {
-                try {
-                    if ($teacherId <= 0) {
-                        return;
-                    }
-                    $targetTeacher = User::query()->find($teacherId);
-                    if (!$targetTeacher) {
-                        return;
-                    }
-                    app(WaGatewayService::class)->notifyTeacherAttendance($targetTeacher, $context);
-                } catch (\Throwable $e) {
-                    Log::warning('WA teacher attendance notification failed (after response)', [
-                        'teacher_id' => $teacherId,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            })->afterResponse();
-
+        if ($teacherId <= 0) {
             return;
         }
 
-        if (in_array($dispatchMode, ['QUEUE', 'AFTER'], true)) {
-            dispatch(function () use ($teacherId, $context): void {
-                try {
-                    if ($teacherId <= 0) {
-                        return;
-                    }
-                    $targetTeacher = User::query()->find($teacherId);
-                    if (!$targetTeacher) {
-                        return;
-                    }
-                    app(WaGatewayService::class)->notifyTeacherAttendance($targetTeacher, $context);
-                } catch (\Throwable $e) {
-                    Log::warning('WA teacher attendance notification failed (queue)', [
-                        'teacher_id' => $teacherId,
-                        'message' => $e->getMessage(),
-                    ]);
+        dispatch(function () use ($teacherId, $context): void {
+            try {
+                $targetTeacher = User::query()->find($teacherId);
+                if (!$targetTeacher) {
+                    return;
                 }
-            });
-
-            return;
-        }
-
-        try {
-            app(WaGatewayService::class)->notifyTeacherAttendance($teacher, $context);
-        } catch (\Throwable $e) {
-            Log::warning('WA teacher attendance notification failed (sync)', [
-                'teacher_id' => $teacher->id,
-                'message' => $e->getMessage(),
-            ]);
-        }
+                app(WaGatewayService::class)->notifyTeacherAttendance($targetTeacher, $context);
+            } catch (\Throwable $e) {
+                Log::warning('WA teacher attendance notification failed', [
+                    'teacher_id' => $teacherId,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        })->afterResponse();
     }
 }

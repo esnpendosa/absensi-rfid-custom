@@ -199,33 +199,50 @@
             <i class="fas fa-print"></i> Cetak Struk
         </button>
         @php
+            $trxList = $allTransactions ?? collect([$transaksi]);
+            $totalBayar = $trxList->sum('nominal_bayar');
+            $totalNominalFormatted = 'Rp ' . number_format($totalBayar, 0, ',', '.');
+            $isAllLunas = true;
+
             $waPhone = preg_replace('/[^0-9]/', '', (string)($transaksi->siswa->no_hp ?? ''));
             if (str_starts_with($waPhone, '0')) {
                 $waPhone = '62' . substr($waPhone, 1);
             }
-            $posNama = ($transaksi->posKeuangan->nama ?? 'Keuangan') . ($transaksi->tagihan?->bulan ? ' (' . $transaksi->tagihan->bulan . ')' : '');
-            $nominalFormatted = 'Rp ' . number_format($transaksi->nominal_bayar, 0, ',', '.');
-            $sisaFormatted = ($transaksi->tagihan && $transaksi->tagihan->sisa > 0) ? 'Rp ' . number_format($transaksi->tagihan->sisa, 0, ',', '.') : 'LUNAS';
+
+            $rincianWa = "";
+            foreach ($trxList as $idx => $tItem) {
+                $tgh = $tItem->tagihan;
+                $posLabel = ($tItem->posKeuangan->nama ?? 'Keuangan') . ($tgh?->bulan ? ' (' . $tgh->bulan . ')' : '');
+                $nominalItemStr = 'Rp ' . number_format($tItem->nominal_bayar, 0, ',', '.');
+                $statusItemStr = ($tgh && $tgh->sisa <= 0) ? '[LUNAS]' : ($tgh ? ('[Sisa: Rp ' . number_format($tgh->sisa, 0, ',', '.') . ']') : '');
+                if ($tgh && $tgh->sisa > 0) {
+                    $isAllLunas = false;
+                }
+                $rincianWa .= ($idx + 1) . ". {$posLabel} : {$nominalItemStr} {$statusItemStr}\n";
+            }
+
             $kuitansiUrl = url('/keuangan/kuitansi/' . $transaksi->id);
 
             $pesanWa = urlencode(
                 "*BUKTI PEMBAYARAN RESMI*\n" .
                 "*SMK NURUL HIDAYAH*\n" .
                 "------------------------------------\n" .
-                "No. Transaksi : {$transaksi->nomor_transaksi}\n" .
+                "No. Nota      : {$transaksi->nomor_transaksi}\n" .
                 "Nama Siswa    : {$transaksi->siswa->nama}\n" .
                 "NISN          : {$transaksi->siswa->nisn}\n" .
                 "Kelas         : {$transaksi->siswa->kelas}\n" .
                 "Tanggal       : " . \Carbon\Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y') . "\n" .
                 "------------------------------------\n" .
-                "Jenis Bayar   : {$posNama}\n" .
-                "Jumlah Bayar  : *{$nominalFormatted}*\n" .
-                "Metode        : {$transaksi->metode_pembayaran}\n" .
-                "Sisa Tagihan  : *{$sisaFormatted}*\n" .
+                "*Rincian Pembayaran:*\n" .
+                $rincianWa .
                 "------------------------------------\n" .
-                "📄 *Link Nota Digital:*\n" .
+                "Total Bayar   : *{$totalNominalFormatted}*\n" .
+                "Metode        : {$transaksi->metode_pembayaran}\n" .
+                "Status        : *" . ($isAllLunas ? 'LUNAS' : 'SEBAGIAN') . "*\n" .
+                "------------------------------------\n" .
+                "Lihat / Unduh Nota Digital:\n" .
                 "{$kuitansiUrl}\n\n" .
-                "_Terima kasih, pembayaran telah tercatat di sistem sekolah._"
+                "_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._"
             );
         @endphp
         @if(!empty($waPhone))
@@ -275,46 +292,52 @@
 
         <div class="divider"></div>
 
-        <!-- Detail Item -->
-        <div class="item-row">
-            <span>{{ $posNama }}</span>
-            <span>{{ $nominalFormatted }}</span>
+        <!-- Detail Item Checklist -->
+        <div style="font-size: 10px; font-weight: bold; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+            Rincian Item Pembayaran:
         </div>
-        <div class="item-detail">
-            Ket: {{ $transaksi->keterangan ?: 'Pembayaran sah' }}
-        </div>
+
+        @foreach($trxList as $item)
+            @php
+                $itemPosNama = ($item->posKeuangan->nama ?? 'Keuangan') . ($item->tagihan?->bulan ? ' (' . $item->tagihan->bulan . ')' : '');
+                $itemLunas = ($item->tagihan && $item->tagihan->sisa <= 0);
+            @endphp
+            <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dotted #e2e8f0;">
+                <div class="item-row" style="margin: 2px 0;">
+                    <span><i class="fas fa-check-square" style="color: #16a34a; margin-right: 4px;"></i> {{ $itemPosNama }}</span>
+                    <span>Rp {{ number_format($item->nominal_bayar, 0, ',', '.') }}</span>
+                </div>
+                <div class="item-detail" style="display: flex; justify-content: space-between; margin: 0;">
+                    <span>{{ $item->keterangan ?: 'Pembayaran sah' }}</span>
+                    <span style="font-weight: bold; color: {{ $itemLunas ? '#16a34a' : '#ea580c' }};">
+                        {{ $itemLunas ? '[LUNAS]' : ('[Sisa: Rp ' . number_format($item->tagihan->sisa, 0, ',', '.') . ']') }}
+                    </span>
+                </div>
+            </div>
+        @endforeach
 
         <div class="double-divider"></div>
 
-        <!-- Perhitungan -->
+        <!-- Perhitungan Total -->
         <div class="calc-row">
             <span>Metode Bayar:</span>
             <b>{{ $transaksi->metode_pembayaran }}</b>
         </div>
         <div class="calc-row calc-total">
             <span>TOTAL BAYAR:</span>
-            <span>{{ $nominalFormatted }}</span>
+            <span>{{ $totalNominalFormatted }}</span>
         </div>
-        
-        @if($transaksi->tagihan)
-        <div class="calc-row" style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
-            <span>Sisa Tunggakan:</span>
-            <b style="color: {{ $transaksi->tagihan->sisa <= 0 ? '#16a34a' : '#dc2626' }};">
-                {{ $sisaFormatted }}
-            </b>
-        </div>
-        @endif
 
         <div style="text-align: center; margin-top: 12px;">
-            <span class="status-badge">
-                {{ ($transaksi->tagihan && $transaksi->tagihan->sisa <= 0) ? 'LUNAS / SELESAI' : 'BERHASIL DIBAYAR' }}
+            <span class="status-badge" style="background-color: {{ $isAllLunas ? '#16a34a' : '#1e293b' }};">
+                {{ $isAllLunas ? 'LUNAS / SELESAI' : 'BERHASIL DIBAYAR (SEBAGIAN)' }}
             </span>
         </div>
 
         <div class="divider"></div>
 
         <div class="receipt-footer">
-            <p>Simpan nota ini sebagai bukti pembayaran yang sah.</p>
+            <p>Simpan nota kuitansi ini sebagai bukti pembayaran yang sah.</p>
             <p style="margin-top: 4px; font-weight: bold;">-- TERIMA KASIH --</p>
             <div class="barcode">*{{ substr($transaksi->nomor_transaksi, -8) }}*</div>
         </div>

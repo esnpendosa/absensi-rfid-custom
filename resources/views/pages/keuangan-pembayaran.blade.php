@@ -169,37 +169,32 @@
                 </div>
             </div>
 
-            <!-- 2. Pilih Pos Tagihan -->
+            <!-- 2. Checklist Tagihan Siswa -->
             <div>
-                <label class="block font-bold text-gray-700 mb-1">Pilih Tagihan / Pos Keuangan <span class="text-red-500">*</span></label>
-                <select id="modalSelectTagihan" onchange="onTagihanSelected()" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-800 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">-- Pilih Siswa Terlebih Dahulu --</option>
-                </select>
-            </div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <label class="block font-bold text-gray-700">Pilih Tagihan yang Dibayar <span class="text-red-500">*</span></label>
+                    <div class="space-x-2 text-[11px]" id="tagihanChecklistActions" style="display: none;">
+                        <button type="button" onclick="checkAllTagihan(true)" class="text-blue-600 hover:text-blue-800 font-bold"><i class="fas fa-check-double"></i> Pilih Semua</button>
+                        <span class="text-gray-300">|</span>
+                        <button type="button" onclick="checkAllTagihan(false)" class="text-gray-500 hover:text-gray-700 font-bold">Batal Pilih</button>
+                    </div>
+                </div>
 
-            <!-- Info Tagihan Box -->
-            <div id="modalTagihanInfoBox" class="hidden p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1">
-                <div class="flex justify-between text-[11px] text-gray-600">
-                    <span>Total Tagihan:</span>
-                    <span class="font-bold" id="boxTagihanNominal">Rp 0</span>
-                </div>
-                <div class="flex justify-between text-[11px] text-gray-600">
-                    <span>Sudah Terbayar:</span>
-                    <span class="font-bold text-emerald-600" id="boxTagihanTerbayar">Rp 0</span>
-                </div>
-                <div class="flex justify-between text-xs pt-1 border-t border-gray-200">
-                    <span class="font-bold text-gray-700">Sisa Tunggakan:</span>
-                    <span class="font-bold text-red-600" id="boxTagihanSisa">Rp 0</span>
+                <div id="modalTagihanContainer" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 max-h-56 overflow-y-auto space-y-2">
+                    <div class="text-gray-400 text-center py-4 italic">Silakan cari & pilih siswa terlebih dahulu.</div>
                 </div>
             </div>
 
-            <!-- 3. Nominal Pembayaran -->
-            <div>
-                <label class="block font-bold text-gray-700 mb-1">Nominal Pembayaran (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" id="modalNominalBayar" required min="1000" step="1000" placeholder="0" class="w-full bg-emerald-50/60 border border-emerald-300 rounded-xl p-3 text-sm font-bold text-emerald-800 focus:ring-emerald-500 focus:border-emerald-500">
+            <!-- Total Bayar Box -->
+            <div id="modalTotalBayarBox" class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex justify-between items-center">
+                <div>
+                    <div class="text-[11px] font-bold text-emerald-800" id="labelTotalItemTerpilih">0 Tagihan Terpilih</div>
+                    <div class="text-[10px] text-emerald-600">Total nominal yang akan dibayar (1 Nota Kuitansi)</div>
+                </div>
+                <div class="text-base font-black text-emerald-700" id="displayTotalBayar">Rp 0</div>
             </div>
 
-            <!-- 4. Metode Pembayaran -->
+            <!-- 3. Metode Pembayaran & Catatan -->
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block font-bold text-gray-700 mb-1">Metode Pembayaran</label>
@@ -219,7 +214,7 @@
             <div class="mt-6 pt-3 border-t border-gray-100 flex justify-end gap-2">
                 <button type="button" onclick="closeInputPembayaranModal()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">Batal</button>
                 <button type="submit" id="btnSubmitModalBayar" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2">
-                    <i class="fas fa-check-circle"></i> Simpan Pembayaran
+                    <i class="fas fa-check-circle"></i> Simpan Pembayaran (1 Nota)
                 </button>
             </div>
         </form>
@@ -466,6 +461,8 @@ function searchModalSiswa(val) {
     }, 250);
 }
 
+let currentModalTagihanList = [];
+
 async function selectModalSiswa(siswaId, nama, nisn, kelas) {
     document.getElementById('modalSiswaResults').classList.add('hidden');
     document.getElementById('modalCariSiswa').value = '';
@@ -475,78 +472,151 @@ async function selectModalSiswa(siswaId, nama, nisn, kelas) {
     document.getElementById('badgeNisnKelas').textContent = `NISN: ${nisn} | Kelas: ${kelas}`;
     document.getElementById('modalSelectedSiswaBadge').classList.remove('hidden');
 
-    // Fetch tagihan siswa
-    const selTagihan = document.getElementById('modalSelectTagihan');
-    selTagihan.innerHTML = `<option value="">Memuat daftar tagihan siswa...</option>`;
+    const container = document.getElementById('modalTagihanContainer');
+    container.innerHTML = `<div class="text-center py-4 text-blue-600"><i class="fas fa-spinner fa-spin mr-1"></i> Memuat daftar tagihan...</div>`;
 
     try {
         const res = await fetch(`{{ url('/keuangan/tagihan-siswa') }}/${siswaId}`);
         const data = await res.json();
         if (data.success) {
             currentModalTagihanList = data.tagihan || [];
-            if (currentModalTagihanList.length === 0) {
-                selTagihan.innerHTML = `<option value="">Tidak ada tagihan untuk siswa ini</option>`;
-                return;
-            }
-
-            selTagihan.innerHTML = `<option value="">-- Pilih Pos Tagihan --</option>` + currentModalTagihanList.map(t => {
-                const posName = t.pos_keuangan ? t.pos_keuangan.nama : 'Pos';
-                const bln = t.bulan ? ` (${t.bulan})` : '';
-                const sisa = formatRupiah(t.sisa);
-                const status = t.status === 'lunas' ? ' [LUNAS]' : ` [Sisa: ${sisa}]`;
-                return `<option value="${t.id}" ${t.status === 'lunas' ? 'disabled' : ''}>${posName}${bln} ${status}</option>`;
-            }).join('');
+            renderTagihanChecklist();
+        } else {
+            container.innerHTML = `<div class="text-center py-3 text-red-500 text-xs">Gagal memuat tagihan.</div>`;
         }
     } catch (e) {
-        selTagihan.innerHTML = `<option value="">Gagal memuat tagihan</option>`;
+        container.innerHTML = `<div class="text-center py-3 text-red-500 text-xs">Gagal memuat tagihan.</div>`;
     }
+}
+
+function renderTagihanChecklist(preselectedId = null) {
+    const container = document.getElementById('modalTagihanContainer');
+    const actions = document.getElementById('tagihanChecklistActions');
+
+    if (!currentModalTagihanList || currentModalTagihanList.length === 0) {
+        container.innerHTML = `<div class="text-center py-4 text-gray-400 italic">Tidak ada tagihan aktif untuk siswa ini.</div>`;
+        if (actions) actions.style.display = 'none';
+        recalcTotalBayar();
+        return;
+    }
+
+    if (actions) actions.style.display = 'inline-block';
+    let html = '';
+
+    currentModalTagihanList.forEach(t => {
+        const posName = t.pos_keuangan ? t.pos_keuangan.nama : 'Pos';
+        const bln = t.bulan ? ` (${t.bulan})` : '';
+        const sisa = Number(t.sisa || 0);
+        const isLunas = t.status === 'lunas' || sisa <= 0;
+        const isChecked = (!isLunas && preselectedId && t.id === Number(preselectedId));
+
+        html += `
+            <div class="p-2.5 bg-white rounded-xl border ${isLunas ? 'border-gray-100 opacity-60' : 'border-gray-200 hover:border-emerald-300 shadow-sm'} transition">
+                <div class="flex items-start justify-between gap-2">
+                    <label class="flex items-start gap-2.5 flex-1 cursor-pointer select-none">
+                        <input type="checkbox" name="chk_tagihan" value="${t.id}" data-sisa="${sisa}" onchange="recalcTotalBayar()" ${isLunas ? 'disabled' : ''} ${isChecked ? 'checked' : ''} class="mt-0.5 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                        <div>
+                            <div class="font-bold text-gray-800 text-xs">${posName}${bln}</div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">Total: ${formatRupiah(t.nominal)} | Terbayar: ${formatRupiah(t.terbayar)}</div>
+                        </div>
+                    </label>
+                    <div class="text-right">
+                        <div class="font-bold text-xs ${isLunas ? 'text-emerald-600' : 'text-red-600'}">
+                            ${isLunas ? 'LUNAS' : ('Sisa: ' + formatRupiah(sisa))}
+                        </div>
+                        ${!isLunas ? `
+                            <div class="mt-1 flex items-center gap-1 justify-end">
+                                <span class="text-[10px] text-gray-400">Bayar:</span>
+                                <input type="number" id="input_nominal_${t.id}" value="${sisa}" min="1000" max="${sisa}" step="1000" oninput="recalcTotalBayar()" class="w-24 px-1.5 py-0.5 text-right font-bold text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-emerald-500">
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    recalcTotalBayar();
+}
+
+function checkAllTagihan(check) {
+    const checkboxes = document.querySelectorAll('input[name="chk_tagihan"]:not(:disabled)');
+    checkboxes.forEach(chk => {
+        chk.checked = check;
+    });
+    recalcTotalBayar();
+}
+
+function recalcTotalBayar() {
+    const checkboxes = document.querySelectorAll('input[name="chk_tagihan"]:checked');
+    let total = 0;
+    let count = 0;
+
+    checkboxes.forEach(chk => {
+        const tagihanId = chk.value;
+        const inputNominal = document.getElementById(`input_nominal_${tagihanId}`);
+        const nominalVal = inputNominal ? Number(inputNominal.value || 0) : Number(chk.dataset.sisa || 0);
+        total += nominalVal;
+        count++;
+    });
+
+    const lbl = document.getElementById('labelTotalItemTerpilih');
+    const disp = document.getElementById('displayTotalBayar');
+    if (lbl) lbl.textContent = `${count} Tagihan Terpilih`;
+    if (disp) disp.textContent = formatRupiah(total);
 }
 
 function clearSelectedSiswa() {
     document.getElementById('modalSelectedSiswaId').value = '';
     document.getElementById('modalSelectedSiswaBadge').classList.add('hidden');
-    document.getElementById('modalSelectTagihan').innerHTML = `<option value="">-- Pilih Siswa Terlebih Dahulu --</option>`;
-    document.getElementById('modalTagihanInfoBox').classList.add('hidden');
-    document.getElementById('modalNominalBayar').value = '';
-}
-
-function onTagihanSelected() {
-    const tagihanId = Number(document.getElementById('modalSelectTagihan').value);
-    const tagihan = currentModalTagihanList.find(t => t.id === tagihanId);
-    const infoBox = document.getElementById('modalTagihanInfoBox');
-
-    if (!tagihan) {
-        infoBox.classList.add('hidden');
-        document.getElementById('modalNominalBayar').value = '';
-        return;
-    }
-
-    document.getElementById('boxTagihanNominal').textContent = formatRupiah(tagihan.nominal);
-    document.getElementById('boxTagihanTerbayar').textContent = formatRupiah(tagihan.terbayar);
-    document.getElementById('boxTagihanSisa').textContent = formatRupiah(tagihan.sisa);
-    document.getElementById('modalNominalBayar').value = tagihan.sisa;
-    infoBox.classList.remove('hidden');
+    document.getElementById('modalTagihanContainer').innerHTML = `<div class="text-gray-400 text-center py-4 italic">Silakan cari & pilih siswa terlebih dahulu.</div>`;
+    const actions = document.getElementById('tagihanChecklistActions');
+    if (actions) actions.style.display = 'none';
+    currentModalTagihanList = [];
+    recalcTotalBayar();
 }
 
 function quickPay(siswaId, tagihanId, namaSiswa, posNama, sisa) {
     openInputPembayaranModal();
     selectModalSiswa(siswaId, namaSiswa, '', '');
     setTimeout(() => {
-        document.getElementById('modalSelectTagihan').value = tagihanId;
-        onTagihanSelected();
-    }, 500);
+        renderTagihanChecklist(tagihanId);
+    }, 450);
 }
 
 async function submitFormInputPembayaran(e) {
     e.preventDefault();
     const siswaId = document.getElementById('modalSelectedSiswaId').value;
-    const tagihanId = document.getElementById('modalSelectTagihan').value;
-    const nominal = document.getElementById('modalNominalBayar').value;
     const metode = document.getElementById('modalMetodeBayar').value;
     const keterangan = document.getElementById('modalKeterangan').value;
 
-    if (!siswaId || !tagihanId || !nominal) {
-        alert('Silakan lengkapi data pembayaran.');
+    if (!siswaId) {
+        alert('Silakan pilih siswa terlebih dahulu.');
+        return;
+    }
+
+    const checkedBoxes = document.querySelectorAll('input[name="chk_tagihan"]:checked');
+    if (checkedBoxes.length === 0) {
+        alert('Silakan checklist minimal 1 tagihan untuk dibayar.');
+        return;
+    }
+
+    const items = [];
+    checkedBoxes.forEach(chk => {
+        const tId = Number(chk.value);
+        const inputNominal = document.getElementById(`input_nominal_${tId}`);
+        const nominalVal = inputNominal ? Number(inputNominal.value) : Number(chk.dataset.sisa);
+        if (nominalVal > 0) {
+            items.push({
+                tagihan_id: tId,
+                nominal_bayar: nominalVal
+            });
+        }
+    });
+
+    if (items.length === 0) {
+        alert('Nominal pembayaran harus lebih dari 0.');
         return;
     }
 
@@ -564,8 +634,7 @@ async function submitFormInputPembayaran(e) {
             },
             body: JSON.stringify({
                 siswa_id: siswaId,
-                tagihan_id: tagihanId,
-                nominal_bayar: nominal,
+                items: items,
                 metode_pembayaran: metode,
                 keterangan: keterangan
             })
@@ -580,9 +649,9 @@ async function submitFormInputPembayaran(e) {
                 window.Swal.fire({
                     icon: 'success',
                     title: 'Pembayaran Berhasil!',
-                    text: result.message || 'Transaksi pembayaran telah tersimpan.',
+                    text: result.message || 'Transaksi pembayaran telah tersimpan dalam 1 nota kuitansi.',
                     showCancelButton: true,
-                    confirmButtonText: '<i class="fas fa-print"></i> Cetak Kuitansi',
+                    confirmButtonText: '<i class="fas fa-print"></i> Cetak Kuitansi (1 Nota)',
                     cancelButtonText: 'Tutup',
                     confirmButtonColor: '#10B981',
                 }).then((r) => {
@@ -592,6 +661,9 @@ async function submitFormInputPembayaran(e) {
                 });
             } else {
                 alert('Pembayaran berhasil!');
+                if (result.data && result.data.id) {
+                    window.open(`{{ url('/keuangan/kuitansi') }}/${result.data.id}`, '_blank');
+                }
             }
         } else {
             alert(result.message || 'Gagal menyimpan pembayaran.');
@@ -600,7 +672,7 @@ async function submitFormInputPembayaran(e) {
         alert('Terjadi kesalahan jaringan.');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-check-circle"></i> Simpan Pembayaran`;
+        btn.innerHTML = `<i class="fas fa-check-circle"></i> Simpan Pembayaran (1 Nota)`;
     }
 }
 

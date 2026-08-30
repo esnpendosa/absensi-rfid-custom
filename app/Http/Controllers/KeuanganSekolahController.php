@@ -490,113 +490,122 @@ class KeuanganSekolahController extends Controller
 
         $validated = $request->validate([
             'siswa_id' => ['required', 'exists:siswa,id'],
-            'tagihan_id' => ['required', 'exists:tagihan_siswa,id'],
-            'nominal_bayar' => ['required', 'numeric', 'min:1000'],
+            'tagihan_id' => ['nullable', 'exists:tagihan_siswa,id'],
+            'nominal_bayar' => ['nullable', 'numeric', 'min:1000'],
+            'items' => ['nullable', 'array', 'min:1'],
+            'items.*.tagihan_id' => ['required_with:items', 'exists:tagihan_siswa,id'],
+            'items.*.nominal_bayar' => ['required_with:items', 'numeric', 'min:1000'],
             'metode_pembayaran' => ['nullable', 'string', 'max:30'],
             'keterangan' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $tagihan = TagihanSiswa::with('posKeuangan', 'siswa')->findOrFail($validated['tagihan_id']);
-        $nominalBayar = (float) $validated['nominal_bayar'];
-
-        if ($nominalBayar > $tagihan->sisa) {
-            $nominalBayar = (float) $tagihan->sisa;
+        // Siapkan daftar items pembayaran
+        $paymentItems = [];
+        if (!empty($validated['items'])) {
+            $paymentItems = $validated['items'];
+        } elseif (!empty($validated['tagihan_id']) && !empty($validated['nominal_bayar'])) {
+            $paymentItems[] = [
+                'tagihan_id' => $validated['tagihan_id'],
+                'nominal_bayar' => $validated['nominal_bayar'],
+            ];
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan pilih minimal 1 tagihan untuk dibayar.'
+            ], 422);
         }
 
-        $transaksi = DB::transaction(function () use ($validated, $tagihan, $nominalBayar) {
-            $nomorTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(5));
+        $nomorTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(5));
+        $metode = $validated['metode_pembayaran'] ?? 'Tunai';
 
-            $trx = TransaksiKeuangan::create([
-                'nomor_transaksi' => $nomorTransaksi,
-                'siswa_id' => $tagihan->siswa_id,
-                'pos_keuangan_id' => $tagihan->pos_keuangan_id,
-                'tagihan_siswa_id' => $tagihan->id,
-                'nominal_bayar' => $nominalBayar,
-                'tanggal_bayar' => Carbon::today(),
-                'metode_pembayaran' => $validated['metode_pembayaran'] ?? 'Tunai',
-                'keterangan' => $validated['keterangan'] ?? ('Pembayaran ' . $tagihan->posKeuangan->nama . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '')),
-                'user_id' => auth()->id(),
-            ]);
+        $createdTransactions = DB::transaction(function () use ($validated, $paymentItems, $nomorTransaksi, $metode) {
+            $trxList = [];
+            foreach ($paymentItems as $item) {
+                $tagihan = TagihanSiswa::with('posKeuangan', 'siswa')->findOrFail($item['tagihan_id']);
+                $nominalBayar = (float) $item['nominal_bayar'];
 
-            $newTerbayar = $tagihan->terbayar + $nominalBayar;
-            $newSisa = max(0, $tagihan->nominal - $newTerbayar);
-            $newStatus = $newSisa <= 0 ? 'lunas' : ($newTerbayar > 0 ? 'cicilan' : 'belum_bayar');
+                if ($nominalBayar > $tagihan->sisa) {
+                    $nominalBayar = (float) $tagihan->sisa;
+                }
 
-            $tagihan->update([
-                'terbayar' => $newTerbayar,
-                'sisa' => $newSisa,
-                'status' => $newStatus,
-            ]);
+                $posLabel = $tagihan->posKeuangan->nama . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '');
 
-            return $trx;
+                $trx = TransaksiKeuangan::create([
+                    'nomor_transaksi' => $nomorTransaksi,
+                    'siswa_id' => $tagihan->siswa_id,
+                    'pos_keuangan_id' => $tagihan->pos_keuangan_id,
+                    'tagihan_siswa_id' => $tagihan->id,
+                    'nominal_bayar' => $nominalBayar,
+                    'tanggal_bayar' => Carbon::today(),
+                    'metode_pembayaran' => $metode,
+                    'keterangan' => $validated['keterangan'] ?? ('Pembayaran ' . $posLabel),
+                    'user_id' => auth()->id(),
+                ]);
+
+                $newTerbayar = $tagihan->terbayar + $nominalBayar;
+                $newSisa = max(0, $tagihan->nominal - $newTerbayar);
+                $newStatus = $newSisa <= 0 ? 'lunas' : ($newTerbayar > 0 ? 'cicilan' : 'belum_bayar');
+
+                $tagihan->update([
+                    'terbayar' => $newTerbayar,
+                    'sisa' => $newSisa,
+                    'status' => $newStatus,
+                ]);
+
+                $trx->setRelation('tagihan', $tagihan);
+                $trxList[] = $trx;
+            }
+
+            return $trxList;
         });
 
-        // Kirim notifikasi WhatsApp otomatis ke nomor siswa/wali
+        $firstTrx = $createdTransactions[0];
+        $siswa = Siswa::find($validated['siswa_id']);
+
+        // Kirim notifikasi WhatsApp otomatis (1 nota gabungan)
         try {
-            $siswa = $tagihan->siswa;
             if ($siswa && !empty($siswa->no_hp)) {
                 $waService = app(\App\Services\WaGatewayService::class);
                 $settings  = $waService->getSettings();
-                $provider  = (string) ($settings['wa_gateway_provider'] ?? '');
+                $totalBayar = collect($createdTransactions)->sum('nominal_bayar');
+                $totalNominalStr = 'Rp ' . number_format($totalBayar, 0, ',', '.');
+                $notaUrl = url('/keuangan/kuitansi/' . $firstTrx->id);
 
-                $nominalStr  = 'Rp ' . number_format($transaksi->nominal_bayar, 0, ',', '.');
-                $totalStr    = 'Rp ' . number_format($tagihan->nominal, 0, ',', '.');
-                $terbayarStr = 'Rp ' . number_format($tagihan->terbayar, 0, ',', '.');
-                $posNama     = ($tagihan->posKeuangan->nama ?? 'Keuangan') . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '');
-                $notaUrl     = url('/keuangan/kuitansi/' . $transaksi->id);
-                $isLunas     = $tagihan->sisa <= 0;
-
-                $sisaStr     = $isLunas ? 'LUNAS' : ('Rp ' . number_format($tagihan->sisa, 0, ',', '.'));
-
-                $replacements = [
-                    '{nama_siswa}'   => (string) ($siswa->nama ?? ''),
-                    '{nama}'         => (string) ($siswa->nama ?? ''),
-                    '{nisn}'         => (string) ($siswa->nisn ?? '-'),
-                    '{kelas}'        => (string) ($siswa->kelas ?? '-'),
-                    '{no_nota}'      => (string) $transaksi->nomor_transaksi,
-                    '{tanggal}'      => Carbon::parse($transaksi->tanggal_bayar)->translatedFormat('d F Y'),
-                    '{jenis_bayar}'  => $posNama,
-                    '{jumlah_bayar}' => $nominalStr,
-                    '{metode}'       => (string) $transaksi->metode_pembayaran,
-                    '{total_tagihan}'=> $totalStr,
-                    '{sudah_dibayar}'=> $terbayarStr,
-                    '{sisa_tagihan}' => $sisaStr,
-                    '{nota_url}'     => $notaUrl,
-                ];
-
-                if ($isLunas) {
-                    $template = trim((string) ($settings['wa_template_pembayaran_lunas'] ?? ''));
-                    if ($template === '') {
-                        $template = "*BUKTI PEMBAYARAN RESMI*\n*SMK NURUL HIDAYAH*\n------------------------------------\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n------------------------------------\nJenis Bayar  : {jenis_bayar}\nJumlah Bayar : *{jumlah_bayar}*\nMetode       : {metode}\nSisa Tagihan : *LUNAS*\n------------------------------------\n*Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
+                // Buat rincian item checklist
+                $rincianText = "";
+                $isAllLunas = true;
+                foreach ($createdTransactions as $idx => $t) {
+                    $tgh = $t->tagihan;
+                    $pNama = ($tgh->posKeuangan->nama ?? 'Keuangan') . ($tgh->bulan ? ' (' . $tgh->bulan . ')' : '');
+                    $statusItem = $tgh->sisa <= 0 ? '[LUNAS]' : ('[Sisa: Rp ' . number_format($tgh->sisa, 0, ',', '.') . ']');
+                    if ($tgh->sisa > 0) {
+                        $isAllLunas = false;
                     }
-                } else {
-                    $template = trim((string) ($settings['wa_template_pembayaran_cicilan'] ?? ''));
-                    if ($template === '') {
-                        $template = "*BUKTI PEMBAYARAN (CICILAN)*\n*SMK NURUL HIDAYAH*\n------------------------------------\nNo. Nota     : {no_nota}\nNama Siswa   : {nama_siswa}\nNISN / Kelas : {nisn} ({kelas})\nTanggal      : {tanggal}\n------------------------------------\nJenis Bayar  : {jenis_bayar}\nTotal Tagihan: *{total_tagihan}*\nSudah Dibayar: {sudah_dibayar}\nBayar Kali Ini: *{jumlah_bayar}*\nMetode       : {metode}\n------------------------------------\nSisa Tagihan : *{sisa_tagihan}*\n------------------------------------\n*Lihat / Unduh Nota Struk Digital:*\n{nota_url}\n\n_Harap segera melunasi sisa tagihan sebesar *{sisa_tagihan}* agar proses administrasi sekolah dapat berjalan lancar. Terima kasih._";
-                    }
+                    $rincianText .= ($idx + 1) . ". {$pNama} : Rp " . number_format($t->nominal_bayar, 0, ',', '.') . " {$statusItem}\n";
                 }
 
-                $pesan = str_replace(array_keys($replacements), array_values($replacements), $template);
+                $pesan = "*BUKTI PEMBAYARAN RESMI*\n" .
+                         "*SMK NURUL HIDAYAH*\n" .
+                         "------------------------------------\n" .
+                         "No. Nota     : {$nomorTransaksi}\n" .
+                         "Nama Siswa   : {$siswa->nama}\n" .
+                         "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n" .
+                         "Tanggal      : " . Carbon::today()->translatedFormat('d F Y') . "\n" .
+                         "------------------------------------\n" .
+                         "*Rincian Pembayaran:*\n" .
+                         $rincianText .
+                         "------------------------------------\n" .
+                         "Total Bayar  : *{$totalNominalStr}*\n" .
+                         "Metode       : {$metode}\n" .
+                         "Status       : *" . ($isAllLunas ? 'LUNAS' : 'SEBAGIAN') . "*\n" .
+                         "------------------------------------\n" .
+                         "*Lihat / Unduh Nota Struk Digital:*\n" .
+                         "{$notaUrl}\n\n" .
+                         "_Terima kasih, pembayaran telah kami terima dan tercatat secara resmi di sistem sekolah._";
 
-                // Tentukan nomor penerima: siswa/wali berdasarkan konfigurasi target
-                $waTarget = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
-                $penerimaNomor = [];
-
-                // Nomor siswa (no_hp di tabel siswa)
                 $nomorSiswa = trim((string) ($siswa->no_hp ?? ''));
                 if ($nomorSiswa !== '') {
-                    if (in_array($waTarget, ['siswa', 'both', 'all'], true)) {
-                        $penerimaNomor[] = $nomorSiswa;
-                    }
-                    // Untuk 'wali', gunakan nomor yang sama karena tidak ada field terpisah
-                    if ($waTarget === 'wali') {
-                        $penerimaNomor[] = $nomorSiswa;
-                    }
-                }
-
-                $penerimaNomor = array_values(array_unique($penerimaNomor));
-                foreach ($penerimaNomor as $nomor) {
-                    $waService->sendCustomMessage($nomor, $pesan);
+                    $waService->sendCustomMessage($nomorSiswa, $pesan);
                 }
             }
         } catch (\Throwable $e) {
@@ -605,8 +614,9 @@ class KeuanganSekolahController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pembayaran berhasil disimpan dan dikirim ke WA siswa.',
-            'data' => $transaksi,
+            'message' => 'Pembayaran berhasil disimpan dan kuitansi 1 nota telah siap.',
+            'data' => $firstTrx,
+            'items_count' => count($createdTransactions),
         ]);
     }
 
@@ -620,8 +630,18 @@ class KeuanganSekolahController extends Controller
             }
         }
 
+        // Ambil semua transaksi dengan nomor_transaksi yang sama (1 nota kuitansi)
+        $allTransactions = TransaksiKeuangan::query()
+            ->where('nomor_transaksi', $transaksi->nomor_transaksi)
+            ->with(['siswa', 'posKeuangan', 'tagihan', 'user'])
+            ->get();
+
+        if ($allTransactions->isEmpty()) {
+            $allTransactions = collect([$transaksi]);
+        }
+
         $transaksi->load(['siswa', 'posKeuangan', 'tagihan', 'user']);
-        return view('pdf.kuitansi-keuangan', compact('transaksi'));
+        return view('pdf.kuitansi-keuangan', compact('transaksi', 'allTransactions'));
     }
 
     // ==========================================

@@ -110,7 +110,7 @@ class WaGatewayService
     public function notifyTeacherAttendance(User $teacher, array $context = []): bool
     {
         $settings = $this->getSettings();
-        if (!$settings['wa_notif_attendance_enabled']) {
+        if (!$settings['wa_notif_attendance_enabled'] && !$settings['wa_notif_enabled']) {
             Log::info('WA teacher attendance skipped: notification disabled', [
                 'user_id' => $teacher->id,
                 'teacher' => $teacher->name,
@@ -119,7 +119,7 @@ class WaGatewayService
         }
 
         $target = strtolower(trim((string) ($settings['wa_notif_target'] ?? 'both')));
-        if (!in_array($target, ['guru', 'both'], true)) {
+        if (!in_array($target, ['guru', 'both', 'all', 'keduanya'], true)) {
             Log::info('WA teacher attendance skipped: target set to siswa only', [
                 'user_id' => $teacher->id,
             ]);

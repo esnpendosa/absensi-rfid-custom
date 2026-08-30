@@ -461,8 +461,6 @@ function searchModalSiswa(val) {
     }, 250);
 }
 
-let currentModalTagihanList = [];
-
 async function selectModalSiswa(siswaId, nama, nisn, kelas) {
     document.getElementById('modalSiswaResults').classList.add('hidden');
     document.getElementById('modalCariSiswa').value = '';

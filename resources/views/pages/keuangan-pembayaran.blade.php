@@ -108,7 +108,7 @@
             </div>
         </div>
 
-        <!-- Table Data Tagihan -->
+        <!-- Table Data Tagihan Siswa (1 Baris Per Siswa) -->
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
                 <thead class="bg-gray-50 text-gray-500 font-semibold uppercase text-[10px] border-b border-gray-100">
@@ -116,17 +116,16 @@
                         <th class="p-3 text-center w-12">No</th>
                         <th class="p-3">Siswa</th>
                         <th class="p-3">Kelas</th>
-                        <th class="p-3">Pos Pembayaran</th>
-                        <th class="p-3 text-right">Tagihan</th>
+                        <th class="p-3 text-right">Total Tagihan</th>
                         <th class="p-3 text-right">Terbayar</th>
-                        <th class="p-3 text-right">Sisa</th>
+                        <th class="p-3 text-right">Sisa Tunggakan</th>
                         <th class="p-3 text-center">Status</th>
-                        <th class="p-3 text-center w-36">Aksi</th>
+                        <th class="p-3 text-center w-32">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyTagihan" class="divide-y divide-gray-100 bg-white text-gray-700">
                     <tr>
-                        <td colspan="9" class="p-8 text-center text-gray-400">Memuat data tagihan...</td>
+                        <td colspan="8" class="p-8 text-center text-gray-400">Memuat data siswa...</td>
                     </tr>
                 </tbody>
             </table>
@@ -142,16 +141,18 @@
 
 @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
 <!-- MODAL INPUT PEMBAYARAN CEPAT -->
-<div id="modalInputPembayaran" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
-        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+<div id="modalInputPembayaran" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] my-auto flex flex-col shadow-2xl border border-gray-100 animate-scale-up">
+        <!-- Header Modal (Fixed) -->
+        <div class="px-5 py-3.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 rounded-t-2xl shrink-0">
             <h3 class="font-bold text-sm text-gray-800 flex items-center gap-2">
-                <i class="fas fa-hand-holding-usd text-emerald-600"></i> Input Data Pembayaran
+                <i class="fas fa-hand-holding-usd text-emerald-600"></i> Kasir Pembayaran Tagihan Siswa
             </h3>
             <button onclick="closeInputPembayaranModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
         </div>
 
-        <form id="formInputPembayaran" onsubmit="submitFormInputPembayaran(event)" class="space-y-4 text-xs">
+        <!-- Form Modal (Scrollable) -->
+        <form id="formInputPembayaran" onsubmit="submitFormInputPembayaran(event)" class="p-5 overflow-y-auto space-y-4 text-xs flex-1">
             <!-- 1. Cari & Pilih Siswa -->
             <div>
                 <label class="block font-bold text-gray-700 mb-1">Cari Siswa <span class="text-red-500">*</span></label>
@@ -180,7 +181,7 @@
                     </div>
                 </div>
 
-                <div id="modalTagihanContainer" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 max-h-56 overflow-y-auto space-y-2">
+                <div id="modalTagihanContainer" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 max-h-48 overflow-y-auto space-y-2">
                     <div class="text-gray-400 text-center py-4 italic">Silakan cari & pilih siswa terlebih dahulu.</div>
                 </div>
             </div>
@@ -210,8 +211,8 @@
                 </div>
             </div>
 
-            <!-- Submit Buttons -->
-            <div class="mt-6 pt-3 border-t border-gray-100 flex justify-end gap-2">
+            <!-- Submit Buttons (Sticky at bottom) -->
+            <div class="pt-3 border-t border-gray-100 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
                 <button type="button" onclick="closeInputPembayaranModal()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">Batal</button>
                 <button type="submit" id="btnSubmitModalBayar" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2">
                     <i class="fas fa-check-circle"></i> Simpan Pembayaran (1 Nota)
@@ -330,7 +331,7 @@ const canInputPayment = {{ auth()->user()?->hasAnyRole(['super-admin', 'admin', 
 function renderTableRows(data, meta) {
     const tbody = document.getElementById('tbodyTagihan');
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400">Tidak ada data tagihan ditemukan.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400">Tidak ada data siswa ditemukan.</td></tr>`;
         document.getElementById('pageInfo').textContent = 'Menampilkan 0 data';
         document.getElementById('paginationControls').innerHTML = '';
         return;
@@ -340,36 +341,31 @@ function renderTableRows(data, meta) {
     tbody.innerHTML = data.map((r, idx) => {
         let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Belum Bayar</span>`;
         if (r.status === 'lunas') {
-            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>`;
+            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas (${r.tagihan_lunas_count}/${r.total_tagihan_count})</span>`;
         } else if (r.status === 'cicilan') {
-            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Cicilan</span>`;
+            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Cicilan (${r.tagihan_lunas_count}/${r.total_tagihan_count})</span>`;
         }
-
-        const posName = r.pos_keuangan ? r.pos_keuangan.nama : '-';
-        const bulanLabel = r.bulan ? ` (${r.bulan})` : '';
 
         let actionCol = '';
         if (canInputPayment) {
             let payBtn = '';
             if (r.status !== 'lunas') {
                 payBtn = `
-                    <button type="button" onclick="quickPay(${r.siswa_id}, ${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}', ${r.sisa})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition inline-flex items-center gap-1" title="Bayar">
+                    <button type="button" onclick="openBayarSiswa(${r.siswa_id}, '${escapeString(r.nama)}', '${escapeString(r.nisn)}', '${escapeString(r.kelas || '-')}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5" title="Bayar Tagihan">
                         <i class="fas fa-hand-holding-usd"></i> Bayar
                     </button>
                 `;
             } else {
-                payBtn = `<span class="text-[11px] font-bold text-emerald-600 px-1"><i class="fas fa-check-circle"></i> Selesai</span>`;
+                payBtn = `
+                    <button type="button" onclick="openBayarSiswa(${r.siswa_id}, '${escapeString(r.nama)}', '${escapeString(r.nisn)}', '${escapeString(r.kelas || '-')}')" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5" title="Lihat Tagihan">
+                        <i class="fas fa-check-circle"></i> Lunas
+                    </button>
+                `;
             }
 
             actionCol = `
                 <div class="flex items-center justify-center gap-1">
                     ${payBtn}
-                    <button type="button" onclick="openEditTagihanModal(${r.id}, ${r.nominal}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}')" class="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-bold transition" title="Edit Tagihan">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button" onclick="deleteTagihan(${r.id}, '${escapeString(r.siswa ? r.siswa.nama : '')}', '${escapeString(posName + bulanLabel)}')" class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[11px] font-bold transition" title="Hapus Tagihan">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
                 </div>
             `;
         } else {
@@ -382,15 +378,14 @@ function renderTableRows(data, meta) {
             <tr class="hover:bg-gray-50 transition">
                 <td class="p-3 text-center font-bold text-gray-400">${startNo + idx}</td>
                 <td class="p-3">
-                    <div class="font-bold text-gray-800">${r.siswa ? r.siswa.nama : '-'}</div>
-                    <div class="text-[10px] text-gray-400 font-mono">NISN: ${r.siswa ? r.siswa.nisn : '-'}</div>
+                    <div class="font-bold text-gray-800">${r.nama || '-'}</div>
+                    <div class="text-[10px] text-gray-400 font-mono">NISN: ${r.nisn || '-'}</div>
                 </td>
-                <td class="p-3 font-semibold text-gray-600">${r.siswa ? (r.siswa.kelas || '-') : '-'}</td>
-                <td class="p-3">
-                    <div class="font-bold text-gray-700">${posName}${bulanLabel}</div>
-                    <div class="text-[10px] text-gray-400 uppercase">${r.tahun_ajaran || ''}</div>
+                <td class="p-3 font-semibold text-gray-600">${r.kelas || '-'}</td>
+                <td class="p-3 text-right">
+                    <div class="font-bold text-gray-800">${formatRupiah(r.nominal)}</div>
+                    <div class="text-[10px] text-gray-400">${r.total_tagihan_count} Pos / Bulan</div>
                 </td>
-                <td class="p-3 text-right font-bold text-gray-800">${formatRupiah(r.nominal)}</td>
                 <td class="p-3 text-right font-bold text-emerald-600">${formatRupiah(r.terbayar)}</td>
                 <td class="p-3 text-right font-bold text-red-600">${formatRupiah(r.sisa)}</td>
                 <td class="p-3 text-center">${statusBadge}</td>
@@ -401,7 +396,7 @@ function renderTableRows(data, meta) {
         `;
     }).join('');
 
-    document.getElementById('pageInfo').textContent = `Menampilkan halaman ${meta.current_page} dari ${meta.last_page} (${meta.total} total data)`;
+    document.getElementById('pageInfo').textContent = `Menampilkan halaman ${meta.current_page} dari ${meta.last_page} (${meta.total} total siswa)`;
     
     // Pagination Controls
     let pagHtml = '';
@@ -412,6 +407,11 @@ function renderTableRows(data, meta) {
         pagHtml += `<button type="button" onclick="loadTableData(${meta.current_page + 1})" class="px-3 py-1 bg-white border border-gray-200 rounded hover:bg-gray-100">Next</button>`;
     }
     document.getElementById('paginationControls').innerHTML = pagHtml;
+}
+
+function openBayarSiswa(siswaId, nama, nisn, kelas) {
+    openInputPembayaranModal();
+    selectModalSiswa(siswaId, nama, nisn, kelas);
 }
 
 function escapeString(str) {

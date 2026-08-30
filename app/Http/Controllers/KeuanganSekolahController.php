@@ -227,45 +227,81 @@ class KeuanganSekolahController extends Controller
         $this->ensureBillingSynced();
 
         $user = auth()->user();
-        $query = TagihanSiswa::query()->with(['siswa', 'posKeuangan']);
+        $query = Siswa::query()->with(['tagihan.posKeuangan']);
 
         // JIKA ROLE SISWA: HANYA BOLEH MELIHAT DATA TAGIHAN SENDIRI
         if ($user && $user->hasRole('siswa')) {
             $nisn = $user->username;
             $nama = $user->name;
-            $query->whereHas('siswa', function ($q) use ($nisn, $nama) {
+            $query->where(function ($q) use ($nisn, $nama) {
                 $q->where('nisn', $nisn)->orWhere('nama', $nama);
             });
         } elseif ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
             // WALI KELAS: HANYA BOLEH MELIHAT KELASNYA
-            $query->whereHas('siswa', function ($q) use ($user) {
-                $q->where('kelas', $user->kelas);
-            });
+            $query->where('kelas', $user->kelas);
         }
 
         if ($request->filled('kelas')) {
-            $query->whereHas('siswa', function ($q) use ($request) {
-                $q->where('kelas', $request->kelas);
-            });
-        }
-
-        if ($request->filled('pos_id')) {
-            $query->where('pos_keuangan_id', $request->pos_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->where('kelas', $request->kelas);
         }
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->whereHas('siswa', function ($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('nama', 'like', "%{$search}%")
                   ->orWhere('nisn', 'like', "%{$search}%");
             });
         }
 
-        $tagihanList = $query->orderByDesc('id')->paginate($request->input('per_page', 20));
+        if ($request->filled('pos_id')) {
+            $posId = $request->pos_id;
+            $query->whereHas('tagihan', function ($q) use ($posId) {
+                $q->where('pos_keuangan_id', $posId);
+            });
+        }
+
+        if ($request->filled('status')) {
+            $st = $request->status;
+            if ($st === 'lunas') {
+                $query->whereDoesntHave('tagihan', fn ($q) => $q->where('status', '!=', 'lunas'));
+            } elseif ($st === 'belum_bayar') {
+                $query->whereDoesntHave('tagihan', fn ($q) => $q->where('terbayar', '>', 0));
+            } elseif ($st === 'cicilan') {
+                $query->whereHas('tagihan', fn ($q) => $q->where('terbayar', '>', 0)->where('status', '!=', 'lunas'));
+            }
+        }
+
+        $siswaList = $query->orderBy('nama')->paginate($request->input('per_page', 20));
+
+        // Format data 1 baris per siswa dengan total gabungan tagihan
+        $transformedData = $siswaList->getCollection()->map(function ($s) {
+            $tagihan = $s->tagihan;
+            $totalNominal = (float) $tagihan->sum('nominal');
+            $totalTerbayar = (float) $tagihan->sum('terbayar');
+            $totalSisa = (float) $tagihan->sum('sisa');
+
+            $status = 'belum_bayar';
+            if ($totalSisa <= 0 && $totalNominal > 0) {
+                $status = 'lunas';
+            } elseif ($totalTerbayar > 0) {
+                $status = 'cicilan';
+            }
+
+            return [
+                'id' => $s->id,
+                'siswa_id' => $s->id,
+                'nama' => $s->nama,
+                'nisn' => $s->nisn,
+                'kelas' => $s->kelas,
+                'total_tagihan_count' => $tagihan->count(),
+                'tagihan_lunas_count' => $tagihan->where('status', 'lunas')->count(),
+                'tagihan_belum_count' => $tagihan->where('status', '!=', 'lunas')->count(),
+                'nominal' => $totalNominal,
+                'terbayar' => $totalTerbayar,
+                'sisa' => $totalSisa,
+                'status' => $status,
+            ];
+        });
 
         // HITUNG RINGKASAN DATA (DISESUAIKAN DENGAN ROLE USER)
         if ($user && $user->hasRole('siswa')) {
@@ -274,7 +310,7 @@ class KeuanganSekolahController extends Controller
 
             $totalPemasukan = (float) TransaksiKeuangan::where('siswa_id', $mySiswaId)->sum('nominal_bayar');
             $totalLunas = TagihanSiswa::where('siswa_id', $mySiswaId)->where('status', 'lunas')->count();
-            $totalSiswa = TagihanSiswa::where('siswa_id', $mySiswaId)->count();
+            $totalSiswa = 1;
             $totalTunggakan = (float) TagihanSiswa::where('siswa_id', $mySiswaId)->where('status', '!=', 'lunas')->sum('sisa');
         } elseif ($user && $user->hasRole('wakel') && !empty($user->kelas)) {
             $kelas = $user->kelas;
@@ -293,11 +329,11 @@ class KeuanganSekolahController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $tagihanList->items(),
+            'data' => $transformedData,
             'meta' => [
-                'current_page' => $tagihanList->currentPage(),
-                'last_page' => $tagihanList->lastPage(),
-                'total' => $tagihanList->total(),
+                'current_page' => $siswaList->currentPage(),
+                'last_page' => $siswaList->lastPage(),
+                'total' => $siswaList->total(),
             ],
             'summary' => [
                 'total_pemasukan' => $totalPemasukan,
@@ -562,26 +598,20 @@ class KeuanganSekolahController extends Controller
         $firstTrx = $createdTransactions[0];
         $siswa = Siswa::find($validated['siswa_id']);
 
-        // Kirim notifikasi WhatsApp otomatis (1 nota gabungan)
+        // Kirim notifikasi WhatsApp HANYA JIKA LUNAS (Jika belum lunas/sebagian, tidak kirim notifikasi)
         try {
-            if ($siswa && !empty($siswa->no_hp)) {
+            if ($isAllLunas && $siswa && !empty($siswa->no_hp)) {
                 $waService = app(\App\Services\WaGatewayService::class);
-                $settings  = $waService->getSettings();
                 $totalBayar = collect($createdTransactions)->sum('nominal_bayar');
                 $totalNominalStr = 'Rp ' . number_format($totalBayar, 0, ',', '.');
                 $notaUrl = url('/keuangan/kuitansi/' . $firstTrx->id);
 
-                // Buat rincian item checklist
+                // Buat rincian item checklist lunas
                 $rincianText = "";
-                $isAllLunas = true;
                 foreach ($createdTransactions as $idx => $t) {
                     $tgh = $t->tagihan;
                     $pNama = ($tgh->posKeuangan->nama ?? 'Keuangan') . ($tgh->bulan ? ' (' . $tgh->bulan . ')' : '');
-                    $statusItem = $tgh->sisa <= 0 ? '[LUNAS]' : ('[Sisa: Rp ' . number_format($tgh->sisa, 0, ',', '.') . ']');
-                    if ($tgh->sisa > 0) {
-                        $isAllLunas = false;
-                    }
-                    $rincianText .= ($idx + 1) . ". {$pNama} : Rp " . number_format($t->nominal_bayar, 0, ',', '.') . " {$statusItem}\n";
+                    $rincianText .= ($idx + 1) . ". {$pNama} : Rp " . number_format($t->nominal_bayar, 0, ',', '.') . " [LUNAS]\n";
                 }
 
                 $pesan = "*BUKTI PEMBAYARAN RESMI*\n" .
@@ -597,7 +627,7 @@ class KeuanganSekolahController extends Controller
                          "------------------------------------\n" .
                          "Total Bayar  : *{$totalNominalStr}*\n" .
                          "Metode       : {$metode}\n" .
-                         "Status       : *" . ($isAllLunas ? 'LUNAS' : 'SEBAGIAN') . "*\n" .
+                         "Status       : *LUNAS*\n" .
                          "------------------------------------\n" .
                          "*Lihat / Unduh Nota Struk Digital:*\n" .
                          "{$notaUrl}\n\n" .

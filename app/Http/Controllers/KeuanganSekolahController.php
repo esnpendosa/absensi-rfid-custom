@@ -551,12 +551,13 @@ class KeuanganSekolahController extends Controller
             ], 422);
         }
 
-        $nomorTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(5));
+        $batchNo = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(5));
         $metode = $validated['metode_pembayaran'] ?? 'Tunai';
+        $totalItems = count($paymentItems);
 
-        $createdTransactions = DB::transaction(function () use ($validated, $paymentItems, $nomorTransaksi, $metode) {
+        $createdTransactions = DB::transaction(function () use ($validated, $paymentItems, $batchNo, $metode, $totalItems) {
             $trxList = [];
-            foreach ($paymentItems as $item) {
+            foreach ($paymentItems as $idx => $item) {
                 $tagihan = TagihanSiswa::with('posKeuangan', 'siswa')->findOrFail($item['tagihan_id']);
                 $nominalBayar = (float) $item['nominal_bayar'];
 
@@ -565,9 +566,10 @@ class KeuanganSekolahController extends Controller
                 }
 
                 $posLabel = $tagihan->posKeuangan->nama . ($tagihan->bulan ? ' (' . $tagihan->bulan . ')' : '');
+                $itemTrxNo = $totalItems > 1 ? ($batchNo . '-' . ($idx + 1)) : $batchNo;
 
                 $trx = TransaksiKeuangan::create([
-                    'nomor_transaksi' => $nomorTransaksi,
+                    'nomor_transaksi' => $itemTrxNo,
                     'siswa_id' => $tagihan->siswa_id,
                     'pos_keuangan_id' => $tagihan->pos_keuangan_id,
                     'tagihan_siswa_id' => $tagihan->id,
@@ -598,6 +600,15 @@ class KeuanganSekolahController extends Controller
         $firstTrx = $createdTransactions[0];
         $siswa = Siswa::find($validated['siswa_id']);
 
+        // Cek apakah seluruh tagihan yang dibayar berstatus lunas
+        $isAllLunas = true;
+        foreach ($createdTransactions as $t) {
+            $tgh = $t->tagihan;
+            if ($tgh && $tgh->sisa > 0) {
+                $isAllLunas = false;
+            }
+        }
+
         // Kirim notifikasi WhatsApp HANYA JIKA LUNAS (Jika belum lunas/sebagian, tidak kirim notifikasi)
         try {
             if ($isAllLunas && $siswa && !empty($siswa->no_hp)) {
@@ -617,7 +628,7 @@ class KeuanganSekolahController extends Controller
                 $pesan = "*BUKTI PEMBAYARAN RESMI*\n" .
                          "*SMK NURUL HIDAYAH*\n" .
                          "------------------------------------\n" .
-                         "No. Nota     : {$nomorTransaksi}\n" .
+                         "No. Nota     : {$batchNo}\n" .
                          "Nama Siswa   : {$siswa->nama}\n" .
                          "NISN / Kelas : {$siswa->nisn} ({$siswa->kelas})\n" .
                          "Tanggal      : " . Carbon::today()->translatedFormat('d F Y') . "\n" .
@@ -660,9 +671,17 @@ class KeuanganSekolahController extends Controller
             }
         }
 
-        // Ambil semua transaksi dengan nomor_transaksi yang sama (1 nota kuitansi)
+        // Ambil base nomor transaksi (tanpa suffix -1, -2, dll jika ada)
+        $rawNo = $transaksi->nomor_transaksi;
+        $baseNo = preg_replace('/-\d+$/', '', $rawNo);
+
         $allTransactions = TransaksiKeuangan::query()
-            ->where('nomor_transaksi', $transaksi->nomor_transaksi)
+            ->where(function ($q) use ($rawNo, $baseNo) {
+                $q->where('nomor_transaksi', $rawNo)
+                  ->orWhere('nomor_transaksi', $baseNo)
+                  ->orWhere('nomor_transaksi', 'like', "{$baseNo}-%");
+            })
+            ->where('siswa_id', $transaksi->siswa_id)
             ->with(['siswa', 'posKeuangan', 'tagihan', 'user'])
             ->get();
 
@@ -671,7 +690,9 @@ class KeuanganSekolahController extends Controller
         }
 
         $transaksi->load(['siswa', 'posKeuangan', 'tagihan', 'user']);
-        return view('pdf.kuitansi-keuangan', compact('transaksi', 'allTransactions'));
+        $nomorNotaTampil = $baseNo;
+
+        return view('pdf.kuitansi-keuangan', compact('transaksi', 'allTransactions', 'nomorNotaTampil'));
     }
 
     // ==========================================

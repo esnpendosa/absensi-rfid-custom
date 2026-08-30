@@ -265,7 +265,7 @@
         <div class="receipt-info">
             <div class="receipt-info-row">
                 <span>No. Nota:</span>
-                <b>{{ $transaksi->nomor_transaksi }}</b>
+                <b>{{ $nomorNotaTampil ?? $transaksi->nomor_transaksi }}</b>
             </div>
             <div class="receipt-info-row">
                 <span>Tanggal:</span>
@@ -339,7 +339,7 @@
         <div class="receipt-footer">
             <p>Simpan nota kuitansi ini sebagai bukti pembayaran yang sah.</p>
             <p style="margin-top: 4px; font-weight: bold;">-- TERIMA KASIH --</p>
-            <div class="barcode">*{{ substr($transaksi->nomor_transaksi, -8) }}*</div>
+            <div class="barcode">*{{ substr($nomorNotaTampil ?? $transaksi->nomor_transaksi, -8) }}*</div>
         </div>
     </div>
 

@@ -49,4 +49,14 @@ class Siswa extends Model
     {
         return $this->hasMany(TelegramChatLink::class, 'siswa_id');
     }
+
+    public function tagihan(): HasMany
+    {
+        return $this->hasMany(TagihanSiswa::class, 'siswa_id');
+    }
+
+    public function transaksiKeuangan(): HasMany
+    {
+        return $this->hasMany(TransaksiKeuangan::class, 'siswa_id');
+    }
 }

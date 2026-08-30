@@ -205,8 +205,7 @@ function renderLaporanRows(rows) {
     }
 
     tbody.innerHTML = rows.map((r, idx) => {
-        const posName = r.pos_keuangan ? r.pos_keuangan.nama : 'Pos';
-        const bln = r.tagihan && r.tagihan.bulan ? ` (${r.tagihan.bulan})` : '';
+        const posLabel = r.pos_label || (r.pos_keuangan ? r.pos_keuangan.nama : 'Pos Tagihan');
 
         return `
             <tr class="hover:bg-gray-50 transition">
@@ -218,7 +217,7 @@ function renderLaporanRows(rows) {
                     <div class="text-[10px] text-gray-400 font-mono">NISN: ${r.siswa ? r.siswa.nisn : '-'}</div>
                 </td>
                 <td class="p-3 font-semibold text-gray-600">${r.siswa ? (r.siswa.kelas || '-') : '-'}</td>
-                <td class="p-3 font-bold text-gray-700">${posName}${bln}</td>
+                <td class="p-3 font-bold text-gray-700">${posLabel}</td>
                 <td class="p-3 text-right font-bold text-emerald-600">Rp ${Number(r.nominal_bayar).toLocaleString('id-ID')}</td>
                 <td class="p-3 text-center">
                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${r.metode_pembayaran === 'Tunai' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
@@ -228,10 +227,10 @@ function renderLaporanRows(rows) {
                 <td class="p-3 text-gray-600 text-[11px]">${r.user ? r.user.name : 'Admin'}</td>
                 <td class="p-3 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <a href="{{ url('/keuangan/kuitansi') }}/${r.id}" target="_blank" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition" title="Lihat / Cetak Struk">
-                            <i class="fas fa-receipt"></i>
+                        <a href="{{ url('/keuangan/kuitansi') }}/${r.id}" target="_blank" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition" title="Lihat / Cetak Struk (1 Nota)">
+                            <i class="fas fa-receipt"></i> Struk
                         </a>
-                        <button type="button" onclick="deleteTransaksi(${r.id}, '${escapeString(r.nomor_transaksi)}', '${escapeString(r.siswa ? r.siswa.nama : '')}', ${r.nominal_bayar})" class="p-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[11px] font-bold transition" title="Batalkan / Hapus Transaksi Ini">
+                        <button type="button" onclick="deleteTransaksi(${r.id}, '${escapeString(r.nomor_transaksi)}', '${escapeString(r.siswa ? r.siswa.nama : '')}', ${r.nominal_bayar})" class="p-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[11px] font-bold transition" title="Batalkan / Hapus Nota Transaksi Ini">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>

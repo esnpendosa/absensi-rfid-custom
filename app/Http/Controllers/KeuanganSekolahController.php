@@ -493,25 +493,37 @@ class KeuanganSekolahController extends Controller
         }
 
         DB::transaction(function () use ($transaksiKeuangan) {
-            $tagihan = $transaksiKeuangan->tagihan;
-            if ($tagihan) {
-                $newTerbayar = max(0, $tagihan->terbayar - (float) $transaksiKeuangan->nominal_bayar);
-                $newSisa = max(0, $tagihan->nominal - $newTerbayar);
-                $newStatus = $newSisa <= 0 ? 'lunas' : ($newTerbayar > 0 ? 'cicilan' : 'belum_bayar');
+            $rawNo = $transaksiKeuangan->nomor_transaksi;
+            $baseNo = preg_replace('/-\d+$/', '', $rawNo);
 
-                $tagihan->update([
-                    'terbayar' => $newTerbayar,
-                    'sisa' => $newSisa,
-                    'status' => $newStatus,
-                ]);
+            $allTrxs = TransaksiKeuangan::where(function ($q) use ($rawNo, $baseNo) {
+                $q->where('nomor_transaksi', $rawNo)
+                  ->orWhere('nomor_transaksi', $baseNo)
+                  ->orWhere('nomor_transaksi', 'like', "{$baseNo}-%");
+            })
+            ->where('siswa_id', $transaksiKeuangan->siswa_id)
+            ->get();
+
+            foreach ($allTrxs as $trx) {
+                $tagihan = $trx->tagihan;
+                if ($tagihan) {
+                    $newTerbayar = max(0, $tagihan->terbayar - (float) $trx->nominal_bayar);
+                    $newSisa = max(0, $tagihan->nominal - $newTerbayar);
+                    $newStatus = $newSisa <= 0 ? 'lunas' : ($newTerbayar > 0 ? 'cicilan' : 'belum_bayar');
+
+                    $tagihan->update([
+                        'terbayar' => $newTerbayar,
+                        'sisa' => $newSisa,
+                        'status' => $newStatus,
+                    ]);
+                }
+                $trx->delete();
             }
-
-            $transaksiKeuangan->delete();
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Transaksi pembayaran berhasil dibatalkan dan sisa tagihan telah disesuaikan.',
+            'message' => 'Transaksi nota pembayaran berhasil dibatalkan dan sisa tagihan telah dikembalikan.',
         ]);
     }
 
@@ -661,8 +673,23 @@ class KeuanganSekolahController extends Controller
         ]);
     }
 
-    public function cetakKuitansi(TransaksiKeuangan $transaksi): View
+    public function cetakKuitansi($identifier): View
     {
+        $transaksi = null;
+        if (is_numeric($identifier)) {
+            $transaksi = TransaksiKeuangan::find((int) $identifier);
+        }
+
+        if (!$transaksi) {
+            $transaksi = TransaksiKeuangan::where('nomor_transaksi', $identifier)
+                ->orWhere('nomor_transaksi', 'like', "{$identifier}%")
+                ->first();
+        }
+
+        if (!$transaksi) {
+            abort(404, 'Data kuitansi pembayaran tidak ditemukan atau telah dibatalkan.');
+        }
+
         $user = auth()->user();
         if ($user && $user->hasRole('siswa')) {
             $siswa = $transaksi->siswa;
@@ -786,16 +813,52 @@ class KeuanganSekolahController extends Controller
         $transaksiList = $query->orderByDesc('id')->get();
 
         $totalKas       = (float) $transaksiList->sum('nominal_bayar');
-        $totalTransaksi = $transaksiList->count();
         $totalTunai     = (float) $transaksiList->where('metode_pembayaran', 'Tunai')->sum('nominal_bayar');
         $totalNonTunai  = $totalKas - $totalTunai;
 
+        // Kelompokkan data transaksi menjadi 1 baris per Nota (TRX-...)
+        $grouped = $transaksiList->groupBy(function ($item) {
+            $baseNo = preg_replace('/-\d+$/', '', $item->nomor_transaksi);
+            return $baseNo . '_' . $item->siswa_id;
+        });
+
+        $groupedData = $grouped->map(function ($items) {
+            $first = $items->first();
+            $baseNo = preg_replace('/-\d+$/', '', $first->nomor_transaksi);
+            $totalNominal = (float) $items->sum('nominal_bayar');
+
+            // Format rincian pos tagihan
+            $posLabels = $items->map(function ($t) {
+                $p = $t->posKeuangan ? $t->posKeuangan->nama : 'Pos';
+                $b = $t->tagihan && $t->tagihan->bulan ? " ({$t->tagihan->bulan})" : '';
+                return $p . $b;
+            })->unique()->values();
+
+            $posSummary = $posLabels->count() === 1
+                ? $posLabels->first()
+                : ($items->count() . ' Tagihan (' . $posLabels->take(2)->implode(', ') . ($posLabels->count() > 2 ? '...' : '') . ')');
+
+            $tanggalFormatted = $first->tanggal_bayar ? Carbon::parse($first->tanggal_bayar)->translatedFormat('d/m/Y') : '-';
+
+            return [
+                'id' => $first->id,
+                'nomor_transaksi' => $baseNo,
+                'tanggal_bayar' => $tanggalFormatted,
+                'siswa' => $first->siswa,
+                'pos_label' => $posSummary,
+                'items_count' => $items->count(),
+                'nominal_bayar' => $totalNominal,
+                'metode_pembayaran' => $first->metode_pembayaran,
+                'user' => $first->user,
+            ];
+        })->values();
+
         return response()->json([
             'success' => true,
-            'data'    => $transaksiList,
+            'data'    => $groupedData,
             'summary' => [
                 'total_kas'       => $totalKas,
-                'total_transaksi' => $totalTransaksi,
+                'total_transaksi' => $groupedData->count(),
                 'total_tunai'     => $totalTunai,
                 'total_non_tunai' => $totalNonTunai,
             ],

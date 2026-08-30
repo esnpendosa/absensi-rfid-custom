@@ -91,8 +91,12 @@
         <div>Bungah, {{ ($printedAt ?? now())->translatedFormat('d F Y') }}</div>
         <div style="margin-top: 4px; font-weight: 700;">Mengetahui,</div>
         <div>{{ ($settings['report_signer_position'] ?? '') !== '' ? $settings['report_signer_position'] : 'Kepala Sekolah' }}</div>
-        <div class="signature-space" style="height: 60px; text-align: center;">
-            <img src="{{ public_path('images/ttd-istianah.png') }}" style="height: 60px; margin: -5px auto;" alt="Ttd & Stempel">
+        <div class="signature-space" style="height: 75px; text-align: center;">
+            @php
+                $ttdPath = public_path('images/ttd-istianah.png');
+                $ttdData = file_exists($ttdPath) ? ('data:image/png;base64,' . base64_encode(file_get_contents($ttdPath))) : asset('images/ttd-istianah.png');
+            @endphp
+            <img src="{{ $ttdData }}" style="height: 75px; margin: -5px auto;" alt="Ttd & Stempel">
         </div>
         <div style="font-weight: 700;">
             {{ ($settings['report_signer_name'] ?? '') !== '' ? $settings['report_signer_name'] : 'ISTIANAH, S.Si' }}

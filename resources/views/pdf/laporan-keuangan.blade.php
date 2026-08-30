@@ -95,8 +95,12 @@
         <div class="sign-box">
             <div>Mengetahui,</div>
             <div>Kepala Sekolah</div>
-            <div class="sign-space" style="height: 65px; text-align: center;">
-                <img src="{{ public_path('images/ttd-istianah.png') }}" style="height: 65px; margin: -5px auto;" alt="Ttd & Stempel">
+            <div class="sign-space" style="height: 75px; text-align: center;">
+                @php
+                    $ttdPath = public_path('images/ttd-istianah.png');
+                    $ttdData = file_exists($ttdPath) ? ('data:image/png;base64,' . base64_encode(file_get_contents($ttdPath))) : asset('images/ttd-istianah.png');
+                @endphp
+                <img src="{{ $ttdData }}" style="height: 75px; margin: -5px auto;" alt="Ttd & Stempel">
             </div>
             <div><b>ISTIANAH, S.Si</b></div>
             <div>NIP. -</div>
@@ -104,7 +108,7 @@
         <div class="sign-box">
             <div>Bungah, {{ \Carbon\Carbon::today()->translatedFormat('d F Y') }}</div>
             <div>Bendahara Sekolah</div>
-            <div class="sign-space" style="height: 65px;"></div>
+            <div class="sign-space" style="height: 75px;"></div>
             <div><b>{{ auth()->user()->name ?? 'Bendahara' }}</b></div>
             <div>NIP. -</div>
         </div>

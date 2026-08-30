@@ -302,14 +302,14 @@
                 $itemPosNama = ($item->posKeuangan->nama ?? 'Keuangan') . ($item->tagihan?->bulan ? ' (' . $item->tagihan->bulan . ')' : '');
                 $itemLunas = ($item->tagihan && $item->tagihan->sisa <= 0);
             @endphp
-            <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dotted #e2e8f0;">
+            <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dotted #cbd5e1;">
                 <div class="item-row" style="margin: 2px 0;">
-                    <span><i class="fas fa-check-square" style="color: #16a34a; margin-right: 4px;"></i> {{ $itemPosNama }}</span>
+                    <span>{{ $loop->iteration }}. {{ $itemPosNama }}</span>
                     <span>Rp {{ number_format($item->nominal_bayar, 0, ',', '.') }}</span>
                 </div>
                 <div class="item-detail" style="display: flex; justify-content: space-between; margin: 0;">
-                    <span>{{ $item->keterangan ?: 'Pembayaran sah' }}</span>
-                    <span style="font-weight: bold; color: {{ $itemLunas ? '#16a34a' : '#ea580c' }};">
+                    <span>{{ $item->keterangan ?: 'Pembayaran' }}</span>
+                    <span style="font-weight: bold; color: #0f172a;">
                         {{ $itemLunas ? '[LUNAS]' : ('[Sisa: Rp ' . number_format($item->tagihan->sisa, 0, ',', '.') . ']') }}
                     </span>
                 </div>
@@ -328,10 +328,10 @@
             <span>{{ $totalNominalFormatted }}</span>
         </div>
 
-        <div style="text-align: center; margin-top: 12px;">
-            <span class="status-badge" style="background-color: {{ $isAllLunas ? '#16a34a' : '#1e293b' }};">
-                {{ $isAllLunas ? 'LUNAS / SELESAI' : 'BERHASIL DIBAYAR (SEBAGIAN)' }}
-            </span>
+        <div style="text-align: center; margin-top: 10px;">
+            <b style="font-size: 11px; letter-spacing: 1px; border: 1.5px solid #0f172a; padding: 4px 14px; display: inline-block;">
+                *** {{ $isAllLunas ? 'LUNAS / SELESAI' : 'PEMBAYARAN SEBAGIAN' }} ***
+            </b>
         </div>
 
         <div class="divider"></div>

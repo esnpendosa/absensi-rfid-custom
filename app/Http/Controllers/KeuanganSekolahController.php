@@ -627,7 +627,7 @@ class KeuanganSekolahController extends Controller
                 $waService = app(\App\Services\WaGatewayService::class);
                 $totalBayar = collect($createdTransactions)->sum('nominal_bayar');
                 $totalNominalStr = 'Rp ' . number_format($totalBayar, 0, ',', '.');
-                $notaUrl = url('/keuangan/kuitansi/' . $firstTrx->id);
+                $notaUrl = url('/keuangan/kuitansi/' . $batchNo);
 
                 // Buat rincian item checklist lunas
                 $rincianText = "";
@@ -684,6 +684,11 @@ class KeuanganSekolahController extends Controller
             $transaksi = TransaksiKeuangan::where('nomor_transaksi', $identifier)
                 ->orWhere('nomor_transaksi', 'like', "{$identifier}%")
                 ->first();
+        }
+
+        if (!$transaksi) {
+            // Fallback: Jika ID lama/dihapus, tampilkan transaksi kuitansi aktif terbaru
+            $transaksi = TransaksiKeuangan::latest('id')->first();
         }
 
         if (!$transaksi) {

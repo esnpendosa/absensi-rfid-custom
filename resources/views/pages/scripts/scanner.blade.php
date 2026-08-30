@@ -21,7 +21,7 @@
     // --- SCAN LIVE TABLE STATE ---
     let scanLiveCount = 0;
     let scanLiveMap = {}; // nisn -> tr element 
-    const SCAN_RESUBMIT_COOLDOWN_MS = 5000;
+    const SCAN_RESUBMIT_COOLDOWN_MS = 2000;
     let scanLastSubmitAt = {}; // nisn -> timestamp
     let usbScannerWedgeBound = false;
     let usbScannerBuffer = '';
@@ -79,25 +79,38 @@
             payload.token = token;
         }
 
-        const response = await fetch(resolveActionEndpoint(method), {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': getCsrfToken(),
-            },
-            body: JSON.stringify(payload),
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const result = await response.json().catch(() => ({}));
+        try {
+            const response = await fetch(resolveActionEndpoint(method), {
+                method: 'POST',
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                },
+                body: JSON.stringify(payload),
+            });
 
-        if (!response.ok) {
-            throw new Error(result.message || 'Gagal memproses permintaan.');
+            clearTimeout(timeoutId);
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Gagal memproses permintaan.');
+            }
+
+            return result;
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                throw new Error('Koneksi timeout. Silakan scan ulang.');
+            }
+            throw err;
         }
-
-        return result;
     }
 
     function createActionRunner() {

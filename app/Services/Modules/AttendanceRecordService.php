@@ -630,17 +630,8 @@ class AttendanceRecordService extends BaseActionService
                     ->first();
 
                 if ($guru) {
-                    $now = Carbon::now();
-                    $results[] = [
-                        'success' => true,
-                        'nisn' => $guru->username,
-                        'nama' => $guru->name,
-                        'kelas' => $guru->jabatan ?: 'Guru / Staf',
-                        'status' => 'Hadir',
-                        'jamDatang' => $now->format('H:i:s'),
-                        'message' => 'Absensi Guru berhasil: ' . $guru->name,
-                        'role' => 'guru',
-                    ];
+                    $teacherAttendanceService = app(\App\Services\TeacherAttendanceService::class);
+                    $results[] = $teacherAttendanceService->process($guru);
                     continue;
                 }
 
@@ -735,21 +726,13 @@ class AttendanceRecordService extends BaseActionService
                 ->first();
 
             if ($guru) {
-                $now = Carbon::now();
+                $teacherAttendanceService = app(\App\Services\TeacherAttendanceService::class);
+                $resGuru = $teacherAttendanceService->process($guru);
+                $resGuru['uid'] = (string) $card->code;
+
                 return [
                     'success' => true,
-                    'results' => [[
-                        'success' => true,
-                        'uid' => (string) $card->code,
-                        'nisn' => $guru->username,
-                        'nama' => $guru->name,
-                        'kelas' => $guru->jabatan ?: 'Guru / Staf',
-                        'status' => 'Hadir',
-                        'jamDatang' => $now->format('H:i:s'),
-                        'jamPulang' => null,
-                        'message' => 'Absensi Guru berhasil: ' . $guru->name,
-                        'role' => 'guru',
-                    ]],
+                    'results' => [$resGuru],
                 ];
             }
 

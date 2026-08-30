@@ -78,7 +78,8 @@ Route::get('/storage/{path}', function (string $path) {
 
 use App\Http\Controllers\PortalController;
 
-Route::get('/', [PortalController::class, 'index'])->name('portal');
+// PUBLIC KUITANSI PEMBAYARAN (Bisa dibuka langsung tanpa login dari link WhatsApp)
+Route::get('/keuangan/kuitansi/{transaksi}', [KeuanganSekolahController::class, 'cetakKuitansi'])->name('keuangan.kuitansi');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
@@ -111,7 +112,6 @@ Route::middleware('auth')->group(function () {
             Route::delete('/tagihan/{tagihanSiswa}', [KeuanganSekolahController::class, 'destroyTagihan'])->name('tagihan.destroy');
             Route::post('/bayar', [KeuanganSekolahController::class, 'bayarTagihan'])->name('bayar');
             Route::delete('/transaksi/{transaksiKeuangan}', [KeuanganSekolahController::class, 'destroyTransaksi'])->name('transaksi.destroy');
-            Route::get('/kuitansi/{transaksi}', [KeuanganSekolahController::class, 'cetakKuitansi'])->name('kuitansi');
 
             // LAPORAN KEUANGAN
             // Middleware permission dihapus dari level route; pembatasan akses dilakukan

@@ -314,7 +314,7 @@ class StaffRecordService extends BaseActionService
             $payload['password'] = bcrypt($password);
         }
 
-        DB::transaction(function () use ($user, $payload, $kelas, $previousKelas): void {
+        DB::transaction(function () use ($user, $payload, $kelas, $previousKelas, $nomorKartu): void {
             $user->update($payload);
             $this->syncSpatieRoleForUser($user, 'wakel');
             $this->syncGuruClassBinding($user, $kelas, $previousKelas);

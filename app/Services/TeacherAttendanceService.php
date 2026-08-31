@@ -411,14 +411,14 @@ class TeacherAttendanceService extends BaseActionService
         $row = 4;
         $col = 1;
         foreach ($baseHeaders as $h) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+            $sheet->setCellValue([$col++, $row], $h);
         }
         for ($d = 1; $d <= $daysInMonth; $d++) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $d);
+            $sheet->setCellValue([$col++, $row], $d);
         }
         $summaryHeaders = ['Hadir', 'Telat', 'Izin', 'Sakit', 'Alpa', '%'];
         foreach ($summaryHeaders as $h) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+            $sheet->setCellValue([$col++, $row], $h);
         }
 
         $totalCols = 4 + $daysInMonth + 6;
@@ -432,20 +432,20 @@ class TeacherAttendanceService extends BaseActionService
         $no = 1;
         foreach ($rows as $r) {
             $col = 1;
-            $sheet->setCellValueByColumnAndRow($col++, $row, $no++);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['nama']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['username']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['jabatan']);
+            $sheet->setCellValue([$col++, $row], $no++);
+            $sheet->setCellValue([$col++, $row], $r['nama']);
+            $sheet->setCellValue([$col++, $row], $r['username']);
+            $sheet->setCellValue([$col++, $row], $r['jabatan']);
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $val = $r['harian'][$d]['code'] ?? '-';
-                $sheet->setCellValueByColumnAndRow($col++, $row, $val);
+                $sheet->setCellValue([$col++, $row], $val);
             }
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_hadir']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_telat']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_izin']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_sakit']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_alpa']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['persen_kehadiran'] . '%');
+            $sheet->setCellValue([$col++, $row], $r['total_hadir']);
+            $sheet->setCellValue([$col++, $row], $r['total_telat']);
+            $sheet->setCellValue([$col++, $row], $r['total_izin']);
+            $sheet->setCellValue([$col++, $row], $r['total_sakit']);
+            $sheet->setCellValue([$col++, $row], $r['total_alpa']);
+            $sheet->setCellValue([$col++, $row], $r['persen_kehadiran'] . '%');
 
             if ($row % 2 === 0) {
                 $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
@@ -458,7 +458,7 @@ class TeacherAttendanceService extends BaseActionService
         $sheet->getColumnDimension('C')->setWidth(16);
         $sheet->getColumnDimension('D')->setWidth(20);
         for ($c = 5; $c <= 4 + $daysInMonth; $c++) {
-            $sheet->getColumnDimensionByColumn($c)->setWidth(5);
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c))->setWidth(5);
         }
 
         // Borders
@@ -504,13 +504,13 @@ class TeacherAttendanceService extends BaseActionService
         // Headers
         $row = 4; $col = 1;
         foreach (['No', 'Nama Guru / Staf', 'NIP / Username', 'Jabatan'] as $h) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+            $sheet->setCellValue([$col++, $row], $h);
         }
         foreach ($namaBulan as $bln) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $bln);
+            $sheet->setCellValue([$col++, $row], $bln);
         }
         foreach (['Total Hadir', 'Total Telat', 'Total Izin', 'Total Sakit', 'Total Alpa', '% Hadir'] as $h) {
-            $sheet->setCellValueByColumnAndRow($col++, $row, $h);
+            $sheet->setCellValue([$col++, $row], $h);
         }
         $totalCols = 4 + 12 + 6;
         $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
@@ -521,20 +521,20 @@ class TeacherAttendanceService extends BaseActionService
         $row = 5; $no = 1;
         foreach ($rows as $r) {
             $col = 1;
-            $sheet->setCellValueByColumnAndRow($col++, $row, $no++);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['nama']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['username']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['jabatan']);
+            $sheet->setCellValue([$col++, $row], $no++);
+            $sheet->setCellValue([$col++, $row], $r['nama']);
+            $sheet->setCellValue([$col++, $row], $r['username']);
+            $sheet->setCellValue([$col++, $row], $r['jabatan']);
             for ($m = 1; $m <= 12; $m++) {
                 $b = $r['bulanan'][$m] ?? [];
-                $sheet->setCellValueByColumnAndRow($col++, $row, ($b['hadir'] ?? 0));
+                $sheet->setCellValue([$col++, $row], ($b['hadir'] ?? 0));
             }
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_hadir']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_telat']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_izin']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_sakit']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['total_alpa']);
-            $sheet->setCellValueByColumnAndRow($col++, $row, $r['persen_kehadiran'] . '%');
+            $sheet->setCellValue([$col++, $row], $r['total_hadir']);
+            $sheet->setCellValue([$col++, $row], $r['total_telat']);
+            $sheet->setCellValue([$col++, $row], $r['total_izin']);
+            $sheet->setCellValue([$col++, $row], $r['total_sakit']);
+            $sheet->setCellValue([$col++, $row], $r['total_alpa']);
+            $sheet->setCellValue([$col++, $row], $r['persen_kehadiran'] . '%');
 
             if ($row % 2 === 0) {
                 $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');

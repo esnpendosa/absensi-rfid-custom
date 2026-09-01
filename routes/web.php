@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
             Route::delete('/tagihan/{tagihanSiswa}', [KeuanganSekolahController::class, 'destroyTagihan'])->name('tagihan.destroy');
             Route::post('/bayar', [KeuanganSekolahController::class, 'bayarTagihan'])->name('bayar');
             Route::delete('/transaksi/{transaksiKeuangan}', [KeuanganSekolahController::class, 'destroyTransaksi'])->name('transaksi.destroy');
+            Route::post('/broadcast-tagihan', [KeuanganSekolahController::class, 'broadcastWaTagihanBulanan'])->name('broadcast-tagihan');
 
             // LAPORAN KEUANGAN
             // Middleware permission dihapus dari level route; pembatasan akses dilakukan

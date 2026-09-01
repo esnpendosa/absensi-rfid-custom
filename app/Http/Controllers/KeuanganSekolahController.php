@@ -57,17 +57,37 @@ class KeuanganSekolahController extends Controller
             'nominal_default' => ['required', 'numeric', 'min:0'],
             'tahun_ajaran' => ['nullable', 'string', 'max:20'],
             'deskripsi' => ['nullable', 'string', 'max:255'],
+            'tarif_per_kelas' => ['nullable'],
+            'target_kelas' => ['nullable'],
         ]);
+
+        $tarifPerKelas = null;
+        if (!empty($validated['tarif_per_kelas'])) {
+            $tarifPerKelas = is_array($validated['tarif_per_kelas'])
+                ? $validated['tarif_per_kelas']
+                : json_decode((string) $validated['tarif_per_kelas'], true);
+        }
+
+        $targetKelas = null;
+        if (!empty($validated['target_kelas'])) {
+            $targetKelas = is_array($validated['target_kelas'])
+                ? $validated['target_kelas']
+                : json_decode((string) $validated['target_kelas'], true);
+        }
 
         $pos = PosKeuangan::create([
             'kode' => strtoupper(trim($validated['kode'])),
             'nama' => trim($validated['nama']),
             'tipe' => $validated['tipe'],
             'nominal_default' => $validated['nominal_default'],
+            'tarif_per_kelas' => $tarifPerKelas,
+            'target_kelas' => $targetKelas,
             'tahun_ajaran' => $validated['tahun_ajaran'] ?? '2026/2027',
             'deskripsi' => $validated['deskripsi'] ?? null,
             'is_active' => true,
         ]);
+
+        $this->ensureBillingSynced();
 
         return response()->json([
             'success' => true,
@@ -89,17 +109,37 @@ class KeuanganSekolahController extends Controller
             'tahun_ajaran' => ['nullable', 'string', 'max:20'],
             'deskripsi' => ['nullable', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
+            'tarif_per_kelas' => ['nullable'],
+            'target_kelas' => ['nullable'],
         ]);
+
+        $tarifPerKelas = null;
+        if (isset($validated['tarif_per_kelas'])) {
+            $tarifPerKelas = is_array($validated['tarif_per_kelas'])
+                ? $validated['tarif_per_kelas']
+                : json_decode((string) $validated['tarif_per_kelas'], true);
+        }
+
+        $targetKelas = null;
+        if (isset($validated['target_kelas'])) {
+            $targetKelas = is_array($validated['target_kelas'])
+                ? $validated['target_kelas']
+                : json_decode((string) $validated['target_kelas'], true);
+        }
 
         $posKeuangan->update([
             'kode' => strtoupper(trim($validated['kode'])),
             'nama' => trim($validated['nama']),
             'tipe' => $validated['tipe'],
             'nominal_default' => $validated['nominal_default'],
+            'tarif_per_kelas' => $tarifPerKelas,
+            'target_kelas' => $targetKelas,
             'tahun_ajaran' => $validated['tahun_ajaran'] ?? $posKeuangan->tahun_ajaran,
             'deskripsi' => $validated['deskripsi'] ?? null,
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $posKeuangan->is_active,
         ]);
+
+        $this->ensureBillingSynced();
 
         return response()->json([
             'success' => true,
@@ -145,7 +185,7 @@ class KeuanganSekolahController extends Controller
         }
 
         $posList = PosKeuangan::where('is_active', true)->orderBy('nama')->get();
-        $kelasList = Siswa::query()->whereNotNull('kelas')->distinct()->pluck('kelas');
+        $kelasList = Siswa::query()->whereNotNull('kelas')->where('kelas', '!=', '')->distinct()->orderBy('kelas')->pluck('kelas');
         $isSiswa = false;
 
         return view('pages.keuangan-pembayaran', compact('posList', 'kelasList', 'isSiswa'));
@@ -154,7 +194,6 @@ class KeuanganSekolahController extends Controller
     public function ensureBillingSynced(): void
     {
         try {
-            // Jika tabel siswa atau tabel pos keuangan kosong, tidak ada yang perlu di-sync
             if (Siswa::count() === 0 || PosKeuangan::count() === 0) {
                 return;
             }
@@ -169,37 +208,51 @@ class KeuanganSekolahController extends Controller
 
             foreach ($siswaList as $siswa) {
                 foreach ($posAktif as $pos) {
+                    if (!$pos->isApplicableToSiswa($siswa)) {
+                        continue;
+                    }
+
+                    $nominal = $pos->getNominalForSiswa($siswa);
+
                     if ($pos->tipe === 'bulanan') {
                         foreach ($bulanList as $bln) {
-                            TagihanSiswa::firstOrCreate(
-                                [
-                                    'pos_keuangan_id' => $pos->id,
-                                    'siswa_id' => $siswa->id,
-                                    'bulan' => $bln,
-                                    'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
-                                ],
-                                [
-                                    'nominal' => $pos->nominal_default,
-                                    'terbayar' => 0,
-                                    'sisa' => $pos->nominal_default,
-                                    'status' => 'belum_bayar',
-                                ]
-                            );
-                        }
-                    } else {
-                        TagihanSiswa::firstOrCreate(
-                            [
+                            $t = TagihanSiswa::firstOrNew([
                                 'pos_keuangan_id' => $pos->id,
                                 'siswa_id' => $siswa->id,
+                                'bulan' => $bln,
                                 'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
-                            ],
-                            [
-                                'nominal' => $pos->nominal_default,
-                                'terbayar' => 0,
-                                'sisa' => $pos->nominal_default,
-                                'status' => 'belum_bayar',
-                            ]
-                        );
+                            ]);
+
+                            if (!$t->exists) {
+                                $t->nominal = $nominal;
+                                $t->terbayar = 0;
+                                $t->sisa = $nominal;
+                                $t->status = 'belum_bayar';
+                                $t->save();
+                            } elseif ((float)$t->terbayar == 0 && (float)$t->nominal != (float)$nominal) {
+                                $t->nominal = $nominal;
+                                $t->sisa = $nominal;
+                                $t->save();
+                            }
+                        }
+                    } else {
+                        $t = TagihanSiswa::firstOrNew([
+                            'pos_keuangan_id' => $pos->id,
+                            'siswa_id' => $siswa->id,
+                            'tahun_ajaran' => $pos->tahun_ajaran ?: '2026/2027',
+                        ]);
+
+                        if (!$t->exists) {
+                            $t->nominal = $nominal;
+                            $t->terbayar = 0;
+                            $t->sisa = $nominal;
+                            $t->status = 'belum_bayar';
+                            $t->save();
+                        } elseif ((float)$t->terbayar == 0 && (float)$t->nominal != (float)$nominal) {
+                            $t->nominal = $nominal;
+                            $t->sisa = $nominal;
+                            $t->save();
+                        }
                     }
                 }
             }
@@ -218,7 +271,100 @@ class KeuanganSekolahController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Semua tagihan siswa berhasil disinkronisasi.',
+            'message' => 'Semua tagihan siswa berhasil disinkronisasi sesuai kelas & tarif masing-masing.',
+        ]);
+    }
+
+    public function broadcastWaTagihanBulanan(Request $request): JsonResponse
+    {
+        if (!auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara'])) {
+            return response()->json(['success' => false, 'message' => 'Akses Ditolak: Anda tidak memiliki izin.'], 403);
+        }
+
+        $bulan = $request->input('bulan') ?: 'September';
+        $tahun = $request->input('tahun_ajaran') ?: '2026/2027';
+        $kelas = $request->input('kelas');
+
+        $this->ensureBillingSynced();
+
+        $query = Siswa::query()
+            ->whereNotNull('no_hp')
+            ->where('no_hp', '!=', '');
+
+        if ($kelas && $kelas !== 'all' && $kelas !== '') {
+            $query->where('kelas', $kelas);
+        }
+
+        $siswaList = $query->with(['tagihan' => function ($q) {
+            $q->where('sisa', '>', 0)->with('posKeuangan');
+        }])->get();
+
+        $waService = app(\App\Services\WaGatewayService::class);
+        $sentCount = 0;
+        $failedCount = 0;
+
+        foreach ($siswaList as $siswa) {
+            $unpaidBills = $siswa->tagihan->filter(fn ($t) => $t->sisa > 0);
+            if ($unpaidBills->isEmpty()) {
+                continue;
+            }
+
+            $totalSisa = $unpaidBills->sum('sisa');
+            $totalSisaStr = 'Rp ' . number_format($totalSisa, 0, ',', '.');
+
+            $rincianText = "";
+            $no = 1;
+            foreach ($unpaidBills as $t) {
+                $posNama = ($t->posKeuangan->nama ?? 'Keuangan') . ($t->bulan ? ' (' . $t->bulan . ')' : '');
+                $sisaStr = 'Rp ' . number_format($t->sisa, 0, ',', '.');
+                $rincianText .= "{$no}. {$posNama} : {$sisaStr}\n";
+                $no++;
+                if ($no > 10) {
+                    $sisaLainnya = $unpaidBills->count() - 10;
+                    if ($sisaLainnya > 0) {
+                        $rincianText .= "... dan {$sisaLainnya} tagihan lainnya\n";
+                    }
+                    break;
+                }
+            }
+
+            $portalUrl = url('/');
+
+            $pesan = "*PEMBERITAHUAN TAGIHAN KEUANGAN SISWA*\n" .
+                     "*SMK NURUL HIDAYAH*\n" .
+                     "------------------------------------\n" .
+                     "Bulan / Periode : {$bulan} {$tahun}\n" .
+                     "Nama Siswa      : {$siswa->nama}\n" .
+                     "NISN / Kelas    : {$siswa->nisn} (" . ($siswa->kelas ?: '-') . ")\n" .
+                     "------------------------------------\n" .
+                     "*Rincian Tagihan Belum Lunas:*\n" .
+                     $rincianText .
+                     "------------------------------------\n" .
+                     "TOTAL TUNGGAKAN : *{$totalSisaStr}*\n" .
+                     "------------------------------------\n" .
+                     "*Informasi Pembayaran:*\n" .
+                     "Pembayaran dapat dilakukan melalui Bendahara Sekolah.\n\n" .
+                     "*Portal Sekolah:*\n" .
+                     "{$portalUrl}\n\n" .
+                     "_Pemberitahuan resmi otomatis ini dikirimkan untuk kenyamanan administrasi keuangan sekolah. Abaikan jika sudah melakukan pembayaran._";
+
+            try {
+                $res = $waService->sendCustomMessage($siswa->no_hp, $pesan);
+                if ($res['success'] ?? false) {
+                    $sentCount++;
+                } else {
+                    $failedCount++;
+                }
+            } catch (\Throwable $e) {
+                $failedCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'sent_count' => $sentCount,
+            'failed_count' => $failedCount,
+            'message' => "Notifikasi tagihan berhasil dikirim ke {$sentCount} siswa/wali murid" . ($failedCount > 0 ? " ({$failedCount} gagal)" : "") . ".",
         ]);
     }
 

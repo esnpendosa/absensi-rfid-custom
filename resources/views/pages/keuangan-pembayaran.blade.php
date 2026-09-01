@@ -24,6 +24,9 @@
                 <i class="fas fa-sync-alt"></i> Perbarui
             </button>
             @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
+            <button type="button" onclick="openModalBroadcastWa()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition shadow-sm">
+                <i class="fab fa-whatsapp text-emerald-600"></i> Kirim Tagihan WA
+            </button>
             <button type="button" onclick="openInputPembayaranModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition transform active:scale-95">
                 <i class="fas fa-plus-circle"></i> Input Pembayaran
             </button>
@@ -240,8 +243,11 @@
             </div>
 
             <div>
-                <label class="block font-bold text-gray-700 mb-1">Nominal Tagihan (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" id="editTagihanNominal" required min="0" step="1000" class="w-full bg-amber-50/60 border border-amber-300 rounded-xl p-3 text-sm font-bold text-amber-900 focus:ring-amber-500 focus:border-amber-500">
+                <label class="block font-bold text-gray-700 mb-1">Nominal Tagihan <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-700 font-bold text-sm">Rp</span>
+                    <input type="text" id="editTagihanNominal" required oninput="formatRupiahInput(this)" placeholder="150.000" class="w-full bg-amber-50/60 border border-amber-300 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-amber-900 focus:ring-amber-500 focus:border-amber-500">
+                </div>
                 <p class="text-[10px] text-gray-400 mt-1">Ubah nominal jika siswa mendapatkan beasiswa, potongan, atau koreksi tagihan.</p>
             </div>
 
@@ -674,9 +680,22 @@ async function submitFormInputPembayaran(e) {
     }
 }
 
+function formatRupiahInput(el) {
+    let val = el.value.replace(/\D/g, '');
+    if (!val) {
+        el.value = '';
+        return;
+    }
+    el.value = Number(val).toLocaleString('id-ID');
+}
+
+function cleanRupiah(val) {
+    return Number(String(val || '').replace(/\D/g, '')) || 0;
+}
+
 function openEditTagihanModal(tagihanId, currentNominal, siswaNama, posNama) {
     document.getElementById('editTagihanId').value = tagihanId;
-    document.getElementById('editTagihanNominal').value = currentNominal;
+    document.getElementById('editTagihanNominal').value = Number(currentNominal || 0).toLocaleString('id-ID');
     document.getElementById('editTagihanSiswaNama').textContent = siswaNama;
     document.getElementById('editTagihanPosNama').textContent = posNama;
     document.getElementById('modalEditTagihan').classList.remove('hidden');
@@ -689,9 +708,9 @@ function closeEditTagihanModal() {
 async function submitFormEditTagihan(e) {
     e.preventDefault();
     const tagihanId = document.getElementById('editTagihanId').value;
-    const nominal = document.getElementById('editTagihanNominal').value;
+    const nominal = cleanRupiah(document.getElementById('editTagihanNominal').value);
 
-    if (!tagihanId || nominal === '') return;
+    if (!tagihanId || nominal < 0) return;
 
     const btn = document.getElementById('btnSubmitEditTagihan');
     btn.disabled = true;
@@ -769,5 +788,105 @@ async function deleteTagihan(tagihanId, siswaNama, posNama) {
         }
     }
 }
+
+function openModalBroadcastWa() {
+    document.getElementById('modalBroadcastWa').classList.remove('hidden');
+}
+
+function closeModalBroadcastWa() {
+    document.getElementById('modalBroadcastWa').classList.add('hidden');
+}
+
+async function executeBroadcastWa(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitBroadcastWa');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Mengirim WA...`;
+
+    const payload = {
+        bulan: document.getElementById('wa_bulan').value,
+        tahun_ajaran: document.getElementById('wa_tahun').value,
+        kelas: document.getElementById('wa_kelas').value,
+    };
+
+    try {
+        const res = await fetch("{{ route('keuangan.broadcast-tagihan') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeModalBroadcastWa();
+            if (window.Swal) {
+                window.Swal.fire({ icon: 'success', title: 'Broadcast Berhasil', text: result.message });
+            } else {
+                alert(result.message);
+            }
+        } else {
+            alert(result.message || 'Gagal mengirim broadcast.');
+        }
+    } catch (err) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fab fa-whatsapp"></i> Kirim Sekarang`;
+    }
+}
 </script>
+
+<!-- Modal Broadcast Tagihan WhatsApp Bulanan -->
+<div id="modalBroadcastWa" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-scale-up">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="font-bold text-sm text-gray-800 flex items-center gap-2">
+                <i class="fab fa-whatsapp text-emerald-600 text-base"></i> Kirim Tagihan WhatsApp Bulanan
+            </h3>
+            <button onclick="closeModalBroadcastWa()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="formBroadcastWa" onsubmit="executeBroadcastWa(event)">
+            <div class="space-y-4 text-xs">
+                <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-[11px] leading-relaxed">
+                    Fitur ini akan mengirimkan rekap rincian tagihan yang belum lunas beserta total tunggakan langsung ke nomor WhatsApp orang tua / siswa.
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Bulan Periode</label>
+                        <select id="wa_bulan" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-emerald-500 focus:border-emerald-500">
+                            @foreach(['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'] as $bln)
+                                <option value="{{ $bln }}" {{ $bln === 'September' ? 'selected' : '' }}>{{ $bln }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Tahun Ajaran</label>
+                        <input type="text" id="wa_tahun" value="2026/2027" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-emerald-500 focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Filter Target Kelas</label>
+                    <select id="wa_kelas" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="">Semua Kelas (Seluruh Siswa)</option>
+                        @foreach($kelasList ?? [] as $k)
+                            <option value="{{ $k }}">{{ $k }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="closeModalBroadcastWa()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">Batal</button>
+                <button type="submit" id="btnSubmitBroadcastWa" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5">
+                    <i class="fab fa-whatsapp"></i> Kirim Sekarang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection

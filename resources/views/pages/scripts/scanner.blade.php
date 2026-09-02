@@ -1969,7 +1969,10 @@ function loadQRCodeSiswa() {
             })
             .withFailureHandler(err => {
                 isScanning = false;
-                const failMessage = 'Gagal server: ' + (err.message || String(err));
+                const errMsg = String(err?.message || err || '');
+                const failMessage = errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('timeout')
+                    ? 'Koneksi sibuk. Silakan tap ulang kartu.'
+                    : ('Gagal: ' + errMsg);
                 if (scanSource === 'camera' && cameraPopup && !cameraPopup.closed) {
                     try { cameraPopup.postMessage({ type: 'SCAN_ERROR', message: failMessage }, '*'); } catch(e) {}
                 } else {

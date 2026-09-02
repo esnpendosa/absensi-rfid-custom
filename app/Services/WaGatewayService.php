@@ -869,12 +869,12 @@ class WaGatewayService
     {
         $provider = strtoupper(trim((string) ($settings['wa_gateway_provider'] ?? '')));
         $bodyType = strtolower(trim((string) ($settings['wa_gateway_body_type'] ?? 'application/json')));
-        $timeout = min(3, max(1, (int) ($settings['wa_gateway_timeout'] ?? 2)));
+        $timeout = min(2, max(1, (int) ($settings['wa_gateway_timeout'] ?? 1)));
         $authorization = trim((string) ($settings['wa_gateway_authorization'] ?? ''));
         $customHeaderKey = trim((string) ($settings['wa_gateway_header_key'] ?? ''));
         $customHeaderValue = trim((string) ($settings['wa_gateway_header_value'] ?? ''));
 
-        $client = Http::timeout($timeout)->acceptJson();
+        $client = Http::connectTimeout(1)->timeout($timeout)->acceptJson();
         $headers = [];
         if ($authorization !== '') {
             $headers['Authorization'] = $authorization;

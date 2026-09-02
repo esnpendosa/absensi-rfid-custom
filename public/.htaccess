@@ -18,6 +18,12 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Disable LiteSpeed Request Throttling and Connection Abort (Anti-Server-Offline)
+    <IfModule Litespeed>
+        RewriteRule .* - [E=nothrottle:1]
+        RewriteRule .* - [E=noabort:1]
+    </IfModule>
+
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f

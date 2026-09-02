@@ -162,6 +162,17 @@
                 <p class="text-[10px] text-gray-400 mt-1">Pilih <b>Tepat Waktu</b> jika siswa telat karena kendala jaringan / internet scanner.</p>
             </div>
 
+            <!-- Toggle Notifikasi WhatsApp -->
+            <div class="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 flex items-center justify-between">
+                <div>
+                    <label for="editAbsenKirimWa" class="font-bold text-emerald-900 cursor-pointer flex items-center gap-1.5 text-xs">
+                        <i class="fab fa-whatsapp text-emerald-600 text-sm"></i> Kirim Notifikasi WhatsApp
+                    </label>
+                    <p class="text-[10px] text-emerald-700 mt-0.5">Kirim info absensi ke WA siswa/wali dengan jam & status di atas.</p>
+                </div>
+                <input type="checkbox" id="editAbsenKirimWa" checked class="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer">
+            </div>
+
             <div class="mt-5 pt-3 border-t border-gray-100 flex justify-end gap-2">
                 <button type="button" onclick="closeEditAbsensiModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition">Batal</button>
                 <button type="submit" id="btnSubmitEditAbsen" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition">

@@ -1224,6 +1224,7 @@ async function submitFormEditAbsensi(e) {
     const jamPulang = document.getElementById('editAbsenJamPulang').value;
     const status = document.getElementById('editAbsenStatus').value;
     const keterangan = document.getElementById('editAbsenKeterangan').value;
+    const kirimWa = document.getElementById('editAbsenKirimWa') ? document.getElementById('editAbsenKirimWa').checked : true;
 
     if (!nisn) return;
 
@@ -1241,7 +1242,8 @@ async function submitFormEditAbsensi(e) {
                 jam_datang: jamDatang,
                 jam_pulang: jamPulang,
                 status: status,
-                keterangan: keterangan
+                keterangan: keterangan,
+                kirim_wa: kirimWa
             }]
         };
         if (token) payload.token = token;

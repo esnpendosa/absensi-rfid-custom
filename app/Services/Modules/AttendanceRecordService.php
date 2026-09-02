@@ -1107,9 +1107,38 @@ class AttendanceRecordService extends BaseActionService
 
         $row->save();
 
+        $sendWa = filter_var($payload['kirim_wa'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        if ($sendWa && in_array($status, ['Hadir', 'Masuk', 'Izin', 'Sakit', 'Alpa', 'Terlambat'], true)) {
+            $jamNotif = $row->jam_datang ? substr((string)$row->jam_datang, 0, 5) : ($row->jam_pulang ? substr((string)$row->jam_pulang, 0, 5) : Carbon::now()->format('H:i'));
+            $context = [
+                'tanggal' => $row->tanggal,
+                'jam' => $jamNotif,
+                'status' => $row->status,
+                'keterangan' => $row->keterangan ?: $row->status,
+                'type' => $row->jam_pulang && !$row->jam_datang ? 'pulang' : 'masuk',
+            ];
+
+            try {
+                if (in_array($status, ['Izin', 'Sakit'], true)) {
+                    app(\App\Services\WaGatewayService::class)->notifyIzinSakit($siswa, array_merge($context, [
+                        'jenis' => strtolower($status),
+                        'event' => 'approved',
+                        'tanggal_mulai' => $row->tanggal,
+                        'tanggal_selesai' => $row->tanggal,
+                        'alasan' => 'Input/Koreksi oleh Admin',
+                        'approved_by' => auth()->user()?->name ?? 'Admin',
+                    ]));
+                } else {
+                    app(\App\Services\WaGatewayService::class)->notifyAttendance($siswa, $context);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Gagal kirim notifikasi WA koreksi absensi: ' . $e->getMessage());
+            }
+        }
+
         return [
             'success' => true,
-            'message' => 'Data jam & status absensi siswa berhasil diperbarui.',
+            'message' => 'Data jam & status absensi siswa berhasil diperbarui' . ($sendWa ? ' & notifikasi WA terkirim.' : '.'),
             'data' => [
                 'nisn' => $siswa->nisn,
                 'nama' => $siswa->nama,

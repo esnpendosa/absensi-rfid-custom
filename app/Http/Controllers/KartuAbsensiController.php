@@ -57,7 +57,11 @@ class KartuAbsensiController extends Controller
             $this->sendSsePadding();
             $this->flushSseBuffer();
 
-            while (!connection_aborted()) {
+            $maxIterations = 5;
+            $currentIteration = 0;
+
+            while (!connection_aborted() && $currentIteration < $maxIterations) {
+                $currentIteration++;
                 [$cards, $students, $teachers, $teachersByCard] = $this->getPageData();
                 $payload = $this->serializePayload($cards, $students, $teachers, $teachersByCard);
                 $fingerprint = sha1($this->encodeSsePayload($payload));

@@ -168,8 +168,6 @@ class KeuanganSekolahController extends Controller
 
     public function indexPembayaran(): View
     {
-        $this->ensureBillingSynced();
-
         $user = auth()->user();
 
         if ($user && $user->hasRole('siswa')) {
@@ -370,8 +368,6 @@ class KeuanganSekolahController extends Controller
 
     public function dataPembayaran(Request $request): JsonResponse
     {
-        $this->ensureBillingSynced();
-
         $user = auth()->user();
         $query = Siswa::query()->with(['tagihan.posKeuangan']);
 

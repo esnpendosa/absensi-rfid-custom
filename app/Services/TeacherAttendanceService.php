@@ -707,6 +707,9 @@ class TeacherAttendanceService extends BaseActionService
         $status = trim((string) ($args[1] ?? 'Hadir'));
         $keterangan = trim((string) ($args[2] ?? ''));
         $tanggal = trim((string) ($args[3] ?? ''));
+        $jamDatang = isset($args[4]) && trim((string)$args[4]) !== '' ? trim((string)$args[4]) : null;
+        $jamPulang = isset($args[5]) && trim((string)$args[5]) !== '' ? trim((string)$args[5]) : null;
+        $kirimWa = isset($args[6]) ? filter_var($args[6], FILTER_VALIDATE_BOOLEAN) : true;
 
         if ($userId <= 0) {
             return ['success' => false, 'message' => 'Guru tidak valid.'];
@@ -725,6 +728,16 @@ class TeacherAttendanceService extends BaseActionService
             ->where('user_id', $userId)
             ->first();
 
+        if ($status === 'Belum Absen') {
+            if ($record) {
+                $record->delete();
+            }
+            return [
+                'success' => true,
+                'message' => 'Status kehadiran ' . $user->name . ' direset menjadi Belum Absen.',
+            ];
+        }
+
         if (!$record) {
             $record = new AbsensiGuru();
             $record->user_id = $user->id;
@@ -732,9 +745,17 @@ class TeacherAttendanceService extends BaseActionService
             $record->nama = $user->name;
             $record->username = $user->username;
             $record->jabatan = $user->jabatan ?: 'Guru';
-            if (in_array($status, ['Hadir', 'Masuk'], true)) {
-                $record->jam_datang = $now->format('H:i:s');
-            }
+        }
+
+        // Format jam HH:MM:SS
+        if ($jamDatang) {
+            $record->jam_datang = strlen($jamDatang) === 5 ? $jamDatang . ':00' : $jamDatang;
+        } elseif (in_array($status, ['Hadir', 'Masuk'], true) && !$record->jam_datang) {
+            $record->jam_datang = $now->format('H:i:s');
+        }
+
+        if ($jamPulang) {
+            $record->jam_pulang = strlen($jamPulang) === 5 ? $jamPulang . ':00' : $jamPulang;
         }
 
         $record->status = $status;
@@ -742,21 +763,26 @@ class TeacherAttendanceService extends BaseActionService
             $record->keterangan = $keterangan;
         } elseif (in_array($status, ['Izin', 'Sakit', 'Alpa'], true)) {
             $record->keterangan = $status;
+        } else {
+            $record->keterangan = 'Tepat Waktu';
         }
 
         $record->save();
 
-        $this->dispatchTeacherAttendanceNotification($user, [
-            'type' => in_array($status, ['Pulang', 'Pulang Cepat']) ? 'pulang' : 'datang',
-            'tanggal' => $targetDate,
-            'jam' => $record->jam_datang ?: $now->format('H:i:s'),
-            'status' => $status,
-            'keterangan' => $record->keterangan ?: $status,
-        ]);
+        if ($kirimWa) {
+            $jamNotif = $record->jam_datang ?: ($record->jam_pulang ?: $now->format('H:i:s'));
+            $this->dispatchTeacherAttendanceNotification($user, [
+                'type' => in_array($status, ['Pulang', 'Pulang Cepat']) ? 'pulang' : 'datang',
+                'tanggal' => $targetDate,
+                'jam' => $jamNotif,
+                'status' => $status,
+                'keterangan' => $record->keterangan ?: $status,
+            ]);
+        }
 
         return [
             'success' => true,
-            'message' => 'Status kehadiran ' . $user->name . ' berhasil diperbarui menjadi ' . $status . '.',
+            'message' => 'Status kehadiran ' . $user->name . ' berhasil diperbarui menjadi ' . $status . ($kirimWa ? ' & WA terkirim.' : '.'),
             'data' => $record,
         ];
     }

@@ -247,7 +247,10 @@
         renderMonitoringGuruTable(filtered);
     }
 
+    let currentFilteredGuruRows = [];
+
     function renderMonitoringGuruTable(rows) {
+        currentFilteredGuruRows = rows;
         const tbody = document.getElementById('tbody-monitoring-guru');
         const info = document.getElementById('info-monitoring-guru');
         if (!tbody) return;
@@ -304,7 +307,7 @@
                 <td class="p-3.5 text-center">${statusBadge}</td>
                 @if (auth()->user()?->hasAnyRole(['admin', 'kepsek', 'super-admin']))
                 <td class="p-3.5 text-center">
-                    <button type="button" onclick="openStatusModalGuru(${g.user_id}, '${encodeURIComponent(g.nama)}', '${g.status}', '${encodeURIComponent(g.keterangan || '')}')" class="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Ubah Status Presensi">
+                    <button type="button" onclick="openStatusModalGuruByIndex(${i})" class="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Koreksi Jam & Status Presensi">
                         <i class="fas fa-edit"></i>
                     </button>
                 </td>
@@ -314,42 +317,79 @@
         }).join('');
     }
 
-    function openStatusModalGuru(userId, encodedNama, currentStatus, encodedKeterangan) {
-        const nama = decodeURIComponent(encodedNama);
-        const keterangan = decodeURIComponent(encodedKeterangan);
+    function openStatusModalGuruByIndex(idx) {
+        const g = currentFilteredGuruRows[idx] || rawMonitoringGuruData[idx];
+        if (!g) return;
+
+        const userId = g.user_id;
+        const nama = g.nama || 'Guru';
+        const currentStatus = g.status || 'Belum Absen';
+        const jamDatangVal = g.jam_datang && g.jam_datang !== '-' ? g.jam_datang.substring(0, 5) : '';
+        const jamPulangVal = g.jam_pulang && g.jam_pulang !== '-' ? g.jam_pulang.substring(0, 5) : '';
+        const keterangan = g.keterangan && g.keterangan !== '-' ? g.keterangan : '';
 
         Swal.fire({
-            title: 'Ubah Status Presensi',
+            title: 'Koreksi Presensi Guru',
             html: `
-                <div class="text-left space-y-3 p-1">
-                    <p class="text-xs text-gray-500 font-medium">Guru: <strong class="text-gray-800 text-sm block">${nama}</strong></p>
+                <div class="text-left space-y-3 p-1 text-xs">
+                    <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
+                        <div class="font-bold text-gray-900 text-sm">${nama}</div>
+                        <div class="text-[11px] text-indigo-700 font-mono mt-0.5">NIP: ${g.username || '-'} | Jabatan: ${g.jabatan || 'Guru'}</div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1">Jam Datang / Masuk</label>
+                            <input type="time" id="swalGuruJamDatang" value="${jamDatangVal}" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2 font-mono font-bold text-gray-800">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1">Jam Pulang</label>
+                            <input type="time" id="swalGuruJamPulang" value="${jamPulangVal}" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2 font-mono font-bold text-gray-800">
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Status Kehadiran</label>
-                        <select id="swalGuruStatus" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 text-xs font-semibold">
+                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Status Kehadiran <span class="text-red-500">*</span></label>
+                        <select id="swalGuruStatus" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 font-bold text-gray-800">
                             <option value="Hadir" ${currentStatus === 'Hadir' || currentStatus === 'Masuk' ? 'selected' : ''}>Hadir</option>
                             <option value="Izin" ${currentStatus === 'Izin' ? 'selected' : ''}>Izin</option>
                             <option value="Sakit" ${currentStatus === 'Sakit' ? 'selected' : ''}>Sakit</option>
                             <option value="Alpa" ${currentStatus === 'Alpa' ? 'selected' : ''}>Alpa</option>
+                            <option value="Belum Absen" ${currentStatus === 'Belum Absen' ? 'selected' : ''}>Belum Absen (Reset)</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Keterangan (Opsional)</label>
-                        <input type="text" id="swalGuruKet" value="${keterangan !== '-' ? keterangan : ''}" placeholder="Contoh: Izin Dinas Luar, Sakit Flu, dll..." class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 text-xs">
+                        <label class="block text-[11px] font-bold text-gray-700 mb-1">Keterangan Tambahan</label>
+                        <input type="text" id="swalGuruKet" value="${keterangan}" placeholder="Contoh: Tepat Waktu, Izin Dinas Luar, dll..." class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5">
+                    </div>
+
+                    <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+                        <div>
+                            <label for="swalGuruKirimWa" class="font-bold text-emerald-900 cursor-pointer flex items-center gap-1.5 text-[11px]">
+                                <i class="fab fa-whatsapp text-emerald-600"></i> Kirim Notifikasi WhatsApp
+                            </label>
+                            <p class="text-[10px] text-emerald-700 mt-0.5">Kirim info absensi ke nomor WA guru dengan jam di atas.</p>
+                        </div>
+                        <input type="checkbox" id="swalGuruKirimWa" checked class="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer">
                     </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Simpan',
+            confirmButtonText: 'Simpan Perubahan',
             confirmButtonColor: '#4f46e5',
             cancelButtonText: 'Batal',
             preConfirm: () => {
                 const status = document.getElementById('swalGuruStatus').value;
                 const ket = document.getElementById('swalGuruKet').value;
-                return { status, ket };
+                const jamDatang = document.getElementById('swalGuruJamDatang').value;
+                const jamPulang = document.getElementById('swalGuruJamPulang').value;
+                const kirimWa = document.getElementById('swalGuruKirimWa').checked;
+                return { status, ket, jamDatang, jamPulang, kirimWa };
             }
         }).then(async (result) => {
             if (!result.isConfirmed) return;
-            const { status, ket } = result.value;
+            const { status, ket, jamDatang, jamPulang, kirimWa } = result.value;
             try {
                 const res = await fetch('/monitoring-guru/update-status', {
                     method: 'POST',
@@ -359,7 +399,7 @@
                         'X-CSRF-TOKEN': getCsrfToken(),
                     },
                     body: JSON.stringify({
-                        args: [userId, status, ket, '']
+                        args: [userId, status, ket, '', jamDatang, jamPulang, kirimWa]
                     })
                 });
                 const resp = await res.json();

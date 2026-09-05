@@ -45,9 +45,9 @@ class PosKeuangan extends Model
     {
         if (!$kelas) return '';
         $k = strtoupper(trim($kelas));
-        if (str_starts_with($k, 'XII') || str_contains($k, '12')) return 'XII';
-        if (str_starts_with($k, 'XI') || str_contains($k, '11')) return 'XI';
-        if (str_starts_with($k, 'X') || str_contains($k, '10')) return 'X';
+        if (str_starts_with($k, 'XII') || preg_match('/\b12\b/', $k) || str_contains($k, 'XII')) return 'XII';
+        if (str_starts_with($k, 'XI') || preg_match('/\b11\b/', $k) || str_contains($k, 'XI')) return 'XI';
+        if (str_starts_with($k, 'X') || preg_match('/\b10\b/', $k) || str_contains($k, 'X')) return 'X';
         return $k;
     }
 
@@ -59,7 +59,7 @@ class PosKeuangan extends Model
         }
 
         $kelas = trim((string) ($siswa->kelas ?? ''));
-        if ($kelas === '') return true;
+        if ($kelas === '') return false;
 
         $tingkat = self::getTingkatKelas($kelas);
 
@@ -68,6 +68,7 @@ class PosKeuangan extends Model
             if ($tClean === 'ALL' || $tClean === 'SEMUA') return true;
             if (strcasecmp($tClean, $kelas) === 0) return true;
             if (strcasecmp($tClean, $tingkat) === 0) return true;
+            if (self::getTingkatKelas($tClean) === $tingkat && $tingkat !== '') return true;
         }
 
         return false;

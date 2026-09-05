@@ -24,6 +24,9 @@
                 <i class="fas fa-sync-alt"></i> Perbarui
             </button>
             @if(auth()->user()?->hasAnyRole(['super-admin', 'admin', 'bendahara']))
+            <button type="button" onclick="syncSemuaTagihan()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition shadow-sm" title="Sinkronisasi Tagihan sesuai Kelas & Tarif Tiap Siswa">
+                <i class="fas fa-magic text-indigo-600"></i> Sinkron Tagihan
+            </button>
             <button type="button" onclick="openModalBroadcastWa()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition shadow-sm">
                 <i class="fab fa-whatsapp text-emerald-600"></i> Kirim Tagihan WA
             </button>
@@ -835,6 +838,67 @@ async function executeBroadcastWa(e) {
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fab fa-whatsapp"></i> Kirim Sekarang`;
+    }
+}
+
+async function syncSemuaTagihan() {
+    let shouldSync = true;
+    if (window.Swal) {
+        const confirm = await Swal.fire({
+            title: 'Sinkronisasi Tagihan Siswa?',
+            text: 'Sistem akan menyesuaikan tagihan seluruh siswa berdasarkan kategori kelas dan tarif pos yang aktif.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Sinkronkan',
+            confirmButtonColor: '#4f46e5',
+            cancelButtonText: 'Batal'
+        });
+        shouldSync = confirm.isConfirmed;
+    } else {
+        shouldSync = confirm('Sinkronisasi tagihan seluruh siswa sekarang?');
+    }
+
+    if (!shouldSync) return;
+
+    if (window.Swal) {
+        Swal.fire({
+            title: 'Menyinkronkan Tagihan...',
+            text: 'Mohon tunggu sebentar',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+    }
+
+    try {
+        const res = await fetch("{{ route('keuangan.pembayaran.sync') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        });
+        const resp = await res.json();
+        if (resp.success) {
+            if (window.Swal) {
+                Swal.fire('Berhasil!', resp.message, 'success');
+            } else {
+                alert(resp.message);
+            }
+            loadTableData();
+        } else {
+            if (window.Swal) {
+                Swal.fire('Gagal', resp.message || 'Gagal menyinkronkan tagihan.', 'error');
+            } else {
+                alert(resp.message || 'Gagal menyinkronkan tagihan.');
+            }
+        }
+    } catch (e) {
+        if (window.Swal) {
+            Swal.fire('Error', 'Terjadi kesalahan sistem saat sinkronisasi.', 'error');
+        } else {
+            alert('Terjadi kesalahan jaringan.');
+        }
     }
 }
 </script>

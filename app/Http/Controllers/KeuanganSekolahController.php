@@ -156,9 +156,11 @@ class KeuanganSekolahController extends Controller
 
         $posKeuangan->delete();
 
+        $this->ensureBillingSynced();
+
         return response()->json([
             'success' => true,
-            'message' => 'Kategori pos keuangan berhasil dihapus.',
+            'message' => 'Kategori pos keuangan berhasil dihapus dan tagihan telah disinkronisasi.',
         ]);
     }
 
@@ -196,6 +198,19 @@ class KeuanganSekolahController extends Controller
                 return;
             }
 
+            // 1. Hapus tagihan yatim (pos sudah dihapus) yang belum pernah dibayar
+            TagihanSiswa::whereDoesntHave('posKeuangan')
+                ->where('terbayar', '<=', 0)
+                ->delete();
+
+            // 2. Hapus tagihan dari pos non-aktif yang belum pernah dibayar
+            $posNonAktifIds = PosKeuangan::where('is_active', false)->pluck('id');
+            if ($posNonAktifIds->isNotEmpty()) {
+                TagihanSiswa::whereIn('pos_keuangan_id', $posNonAktifIds)
+                    ->where('terbayar', '<=', 0)
+                    ->delete();
+            }
+
             $posAktif = PosKeuangan::where('is_active', true)->get();
             if ($posAktif->isEmpty()) return;
 
@@ -206,7 +221,13 @@ class KeuanganSekolahController extends Controller
 
             foreach ($siswaList as $siswa) {
                 foreach ($posAktif as $pos) {
+                    // JIKA POS TIDAK BERLAKU UNTUK KELAS SISWA INI
                     if (!$pos->isApplicableToSiswa($siswa)) {
+                        // Hapus tagihan yang belum pernah dibayar/dicicil untuk siswa ini pada pos ini
+                        TagihanSiswa::where('pos_keuangan_id', $pos->id)
+                            ->where('siswa_id', $siswa->id)
+                            ->where('terbayar', '<=', 0)
+                            ->delete();
                         continue;
                     }
 
@@ -227,9 +248,16 @@ class KeuanganSekolahController extends Controller
                                 $t->sisa = $nominal;
                                 $t->status = 'belum_bayar';
                                 $t->save();
-                            } elseif ((float)$t->terbayar == 0 && (float)$t->nominal != (float)$nominal) {
+                            } elseif ((float)$t->nominal != (float)$nominal) {
                                 $t->nominal = $nominal;
-                                $t->sisa = $nominal;
+                                $t->sisa = max(0, (float)$nominal - (float)$t->terbayar);
+                                if ($t->sisa <= 0 && $t->nominal > 0) {
+                                    $t->status = 'lunas';
+                                } elseif ($t->terbayar > 0) {
+                                    $t->status = 'cicilan';
+                                } else {
+                                    $t->status = 'belum_bayar';
+                                }
                                 $t->save();
                             }
                         }
@@ -246,9 +274,16 @@ class KeuanganSekolahController extends Controller
                             $t->sisa = $nominal;
                             $t->status = 'belum_bayar';
                             $t->save();
-                        } elseif ((float)$t->terbayar == 0 && (float)$t->nominal != (float)$nominal) {
+                        } elseif ((float)$t->nominal != (float)$nominal) {
                             $t->nominal = $nominal;
-                            $t->sisa = $nominal;
+                            $t->sisa = max(0, (float)$nominal - (float)$t->terbayar);
+                            if ($t->sisa <= 0 && $t->nominal > 0) {
+                                $t->status = 'lunas';
+                            } elseif ($t->terbayar > 0) {
+                                $t->status = 'cicilan';
+                            } else {
+                                $t->status = 'belum_bayar';
+                            }
                             $t->save();
                         }
                     }
